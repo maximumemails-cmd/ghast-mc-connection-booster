@@ -1,0 +1,154 @@
+<UserControl x:Class="Ghast.Views.PingView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Ghast.Controls">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel MaxWidth="640" HorizontalAlignment="Center" Margin="20,40,20,44">
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock Text="Server Connection Test" Style="{StaticResource SectionLabel}" />
+                <controls:InfoIcon Margin="10,0,0,0"
+                    Info="Measures connection quality from this PC to the server you enter: real Minecraft status pings over ~8 seconds, reporting latency, jitter and failed pings. Honest note: this grades the route between you and the server's edge — it can't see the server's internal proxy or routing." />
+            </StackPanel>
+
+            <!-- address + test button -->
+            <Grid Margin="0,26,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox Grid.Column="0"
+                         Style="{StaticResource GhastTextBox}"
+                         Tag="mc.hypixel.net  or  192.168.1.10:25565"
+                         Text="{Binding Address, UpdateSourceTrigger=PropertyChanged}" />
+                <Button Grid.Column="1"
+                        Style="{StaticResource SolidRedButton}"
+                        Margin="12,0,0,0"
+                        MinWidth="110"
+                        Command="{Binding TestCommand}">
+                    <Button.Resources>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Text" Value="Test" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsTesting}" Value="True">
+                                    <Setter Property="Text" Value="Testing…" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Resources>
+                    <TextBlock />
+                </Button>
+            </Grid>
+
+            <!-- progress / error -->
+            <TextBlock Text="{Binding ProgressText}"
+                       Style="{StaticResource MutedLabel}"
+                       HorizontalAlignment="Center"
+                       Margin="0,14,0,0"
+                       Visibility="{Binding ProgressText, Converter={StaticResource NullToCollapsed}}" />
+            <TextBlock Text="{Binding ErrorText}"
+                       Foreground="{StaticResource Accent}"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       TextWrapping="Wrap"
+                       TextAlignment="Center"
+                       HorizontalAlignment="Center"
+                       Margin="0,14,0,0"
+                       Visibility="{Binding ErrorText, Converter={StaticResource NullToCollapsed}}" />
+
+            <!-- results -->
+            <Border Background="{StaticResource BgPanel}"
+                    BorderBrush="{StaticResource Stroke}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="28,22"
+                    Margin="0,26,0,0"
+                    Visibility="{Binding Report, Converter={StaticResource NullToCollapsed}}">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="{Binding Report.Grade}"
+                                   FontSize="52" FontWeight="Bold"
+                                   Foreground="{StaticResource Accent}"
+                                   VerticalAlignment="Center" />
+                        <StackPanel VerticalAlignment="Center" Margin="18,0,0,0">
+                            <TextBlock Text="{Binding ScoreText}"
+                                       FontSize="20" FontWeight="Bold"
+                                       Foreground="{StaticResource TextWhite}" />
+                            <TextBlock Text="{Binding ResolvedText}"
+                                       Style="{StaticResource MutedLabel}" FontSize="13" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding Report.Summary}"
+                               FontSize="15" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextWhite}"
+                               TextWrapping="Wrap" TextAlignment="Center"
+                               Margin="0,14,0,0" />
+
+                    <Border Height="1" Background="{StaticResource Stroke}" Margin="0,18" />
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Latency" Style="{StaticResource MutedLabel}" FontSize="13"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock HorizontalAlignment="Center" Foreground="{StaticResource TextWhite}"
+                                       FontSize="19" FontWeight="Bold" Margin="0,3,0,0">
+                                <Run Text="{Binding Report.AvgMs, Mode=OneWay}" /><Run Text=" ms" />
+                            </TextBlock>
+                            <TextBlock HorizontalAlignment="Center" Style="{StaticResource MutedLabel}" FontSize="12">
+                                <Run Text="{Binding Report.MinMs, Mode=OneWay}" /><Run Text="–" /><Run
+                                    Text="{Binding Report.MaxMs, Mode=OneWay}" /><Run Text=" ms" />
+                            </TextBlock>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Jitter" Style="{StaticResource MutedLabel}" FontSize="13"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock HorizontalAlignment="Center" Foreground="{StaticResource TextWhite}"
+                                       FontSize="19" FontWeight="Bold" Margin="0,3,0,0">
+                                <Run Text="{Binding Report.JitterMs, Mode=OneWay}" /><Run Text=" ms" />
+                            </TextBlock>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Failed pings" Style="{StaticResource MutedLabel}" FontSize="13"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock HorizontalAlignment="Center" Foreground="{StaticResource TextWhite}"
+                                       FontSize="19" FontWeight="Bold" Margin="0,3,0,0">
+                                <Run Text="{Binding Report.LossPercent, Mode=OneWay}" /><Run Text="%" />
+                            </TextBlock>
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Margin="0,18,0,0">
+                        <TextBlock Foreground="{StaticResource TextWhite}" FontSize="13" TextWrapping="Wrap">
+                            <Run Text="Latency: " FontWeight="SemiBold" /><Run Text="{Binding Report.LatencyRating, Mode=OneWay}" />
+                        </TextBlock>
+                        <TextBlock Foreground="{StaticResource TextWhite}" FontSize="13" TextWrapping="Wrap" Margin="0,4,0,0">
+                            <Run Text="Jitter: " FontWeight="SemiBold" /><Run Text="{Binding Report.JitterRating, Mode=OneWay}" />
+                        </TextBlock>
+                        <TextBlock Foreground="{StaticResource TextWhite}" FontSize="13" TextWrapping="Wrap" Margin="0,4,0,0">
+                            <Run Text="Stability: " FontWeight="SemiBold" /><Run Text="{Binding Report.StabilityRating, Mode=OneWay}" />
+                        </TextBlock>
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding Report.Motd}"
+                               Style="{StaticResource MutedLabel}" FontSize="13"
+                               TextWrapping="Wrap" TextAlignment="Center" Margin="0,14,0,0"
+                               Visibility="{Binding Report.Motd, Converter={StaticResource NullToCollapsed}}" />
+                    <TextBlock Text="{Binding PlayersText}"
+                               Style="{StaticResource MutedLabel}" FontSize="13"
+                               HorizontalAlignment="Center" Margin="0,4,0,0" />
+
+                    <TextBlock Text="Connection quality to this server — measures your route to the server's edge, not its internal routing."
+                               Style="{StaticResource MutedLabel}" FontSize="11.5"
+                               TextWrapping="Wrap" TextAlignment="Center" Margin="0,16,0,0" />
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -1,0 +1,100 @@
+<UserControl x:Class="Ghast.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Ghast.Controls">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel MaxWidth="760" HorizontalAlignment="Center" Margin="20,44,20,44">
+
+            <!-- Smart Packets -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock Text="Smart Packets" Style="{StaticResource SectionLabel}" />
+                <controls:PillToggle IsChecked="{Binding SmartPackets}" Margin="16,0,10,0" />
+                <controls:InfoIcon
+                    Info="Turns off Nagle's algorithm so small game packets send instantly instead of being bundled. Good for PvP, can slightly raise bandwidth use." />
+            </StackPanel>
+
+            <!-- Latency -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,46,0,10">
+                <TextBlock Text="Latency" Style="{StaticResource SectionLabel}" />
+                <controls:InfoIcon Margin="10,0,0,0"
+                    Info="Controls how much delayed-ACK Windows uses. Higher = fewer artificial delays on incoming packets. Honest note: the effect is small — software can't lower real network latency, only remove delay Windows itself adds. Mirrors 'Packets Delay' on the Advanced tab (same Windows setting)." />
+            </StackPanel>
+            <Slider Style="{StaticResource RedSlider}" Minimum="0" Maximum="4"
+                    Value="{Binding Latency}" />
+
+            <!-- Responsiveness -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,46,0,10">
+                <TextBlock Text="Responsiveness" Style="{StaticResource SectionLabel}" />
+                <controls:InfoIcon Margin="10,0,0,0"
+                    Info="How much CPU Windows reserves away from foreground apps for background tasks. Further right = less reserved for background work = more responsiveness for your game." />
+            </StackPanel>
+            <Slider Style="{StaticResource RedSlider}" Minimum="0" Maximum="20"
+                    Value="{Binding Responsiveness}" />
+
+            <!-- Tuning / Type dropdowns -->
+            <Grid Margin="0,46,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="40" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+                        <TextBlock Text="Tuning" Style="{StaticResource SectionLabel}" />
+                        <controls:InfoIcon Margin="10,0,0,0"
+                            Info="TCP receive-window auto-tuning level. 'Restricted' limits how big the window grows — steadier on some connections; 'Normal' is the Windows default." />
+                    </StackPanel>
+                    <ComboBox Style="{StaticResource GhastDropdown}"
+                              ItemsSource="{Binding TuningOptions}"
+                              SelectedItem="{Binding Tuning}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+                        <TextBlock Text="Type" Style="{StaticResource SectionLabel}" />
+                        <controls:InfoIcon Margin="10,0,0,0"
+                            Info="Your connection type. Ghast uses this to pick sensible defaults for the other controls (e.g. Satellite keeps larger buffers; Fiber goes aggressive). It doesn't write any Windows value by itself." />
+                    </StackPanel>
+                    <ComboBox Style="{StaticResource GhastDropdown}"
+                              ItemsSource="{Binding TypeOptions}"
+                              SelectedItem="{Binding ConnectionType}" />
+                </StackPanel>
+            </Grid>
+
+            <!-- Connection stable -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,52,0,0">
+                <TextBlock Text="Is Your Connection Stable?" Style="{StaticResource SectionLabel}" />
+                <controls:PillToggle IsChecked="{Binding ConnectionStable}" Margin="16,0,10,0" />
+                <controls:InfoIcon
+                    Info="If your connection drops or spikes, turn this OFF and Ghast applies safer, more conservative settings on Run (auto-tuning stays Normal, delayed ACKs are kept, riskier tweaks are skipped)." />
+            </StackPanel>
+
+            <!-- Competitive mode -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,36,0,0">
+                <TextBlock Text="Competitive Mode" Style="{StaticResource SectionLabel}" />
+                <controls:PillToggle IsChecked="{Binding CompetitiveMode}" Margin="16,0,10,0" />
+                <controls:InfoIcon
+                    Info="One switch for the most aggressive low-latency profile: Smart Packets on, max responsiveness, Windows network throttling disabled, priority and power tweaks on. Ghast snapshots your previous choices, so switching this off puts them back." />
+            </StackPanel>
+
+            <!-- App options (take effect immediately, not on Run) -->
+            <Border Height="1" Background="{StaticResource TrackOff}" Margin="60,44,60,0" />
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,32,0,0">
+                <TextBlock Text="Start Ghast With Windows" Style="{StaticResource SectionLabel}" FontSize="16" />
+                <controls:PillToggle IsChecked="{Binding StartWithWindows}" Margin="16,0,10,0" />
+                <controls:InfoIcon
+                    Info="Adds/removes a per-user startup entry (registry Run key). Takes effect immediately, not on Run. Honest note: Ghast needs administrator rights, and some Windows versions skip elevated apps at logon instead of prompting — if Ghast doesn't appear after a reboot, that's why." />
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,24,0,0">
+                <TextBlock Text="Pin Ghast To The Taskbar" Style="{StaticResource SectionLabel}" FontSize="16" />
+                <controls:PillToggle IsChecked="{Binding PinToTaskbar}" Margin="16,0,10,0" />
+                <controls:InfoIcon
+                    Info="Pins or unpins Ghast on the taskbar, immediately. Best effort: Windows deliberately restricts apps pinning themselves, so if your Windows build blocks it Ghast flips the toggle back and shows how to pin manually." />
+            </StackPanel>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

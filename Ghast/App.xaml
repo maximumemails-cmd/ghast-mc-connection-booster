@@ -1,0 +1,21 @@
+<Application x:Class="Ghast.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:Ghast.Converters"
+             ShutdownMode="OnMainWindowClose">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Styles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <conv:TabForegroundConverter x:Key="TabForeground"
+                                         ActiveBrush="{StaticResource TextWhite}"
+                                         InactiveBrush="{StaticResource TextMuted}" />
+            <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility" />
+            <conv:InverseBoolConverter x:Key="InverseBool" />
+            <conv:NullToCollapsedConverter x:Key="NullToCollapsed" />
+            <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

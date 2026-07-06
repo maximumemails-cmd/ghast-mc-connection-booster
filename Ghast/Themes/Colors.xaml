@@ -1,0 +1,34 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Spec §3.2 colour tokens -->
+    <Color x:Key="BgHeaderFooterColor">#0A0D18</Color>
+    <Color x:Key="BgBodyColor">#151C33</Color>
+    <Color x:Key="BgBodyTopColor">#171E36</Color>
+    <Color x:Key="BgBodyBottomColor">#141A2E</Color>
+    <Color x:Key="BgPanelColor">#0F1526</Color>
+    <Color x:Key="AccentColor">#E4303F</Color>
+    <Color x:Key="AccentBrightColor">#EA2E3E</Color>
+    <Color x:Key="TextWhiteColor">#F3F5FA</Color>
+    <Color x:Key="TextMutedColor">#5C6B8C</Color>
+    <Color x:Key="TrackOffColor">#2A3048</Color>
+    <Color x:Key="StrokeColor">#3A445F</Color>
+
+    <SolidColorBrush x:Key="BgHeaderFooter" Color="{StaticResource BgHeaderFooterColor}" />
+    <SolidColorBrush x:Key="BgBody" Color="{StaticResource BgBodyColor}" />
+    <SolidColorBrush x:Key="BgPanel" Color="{StaticResource BgPanelColor}" />
+    <SolidColorBrush x:Key="Accent" Color="{StaticResource AccentColor}" />
+    <SolidColorBrush x:Key="AccentBright" Color="{StaticResource AccentBrightColor}" />
+    <SolidColorBrush x:Key="TextWhite" Color="{StaticResource TextWhiteColor}" />
+    <SolidColorBrush x:Key="TextMuted" Color="{StaticResource TextMutedColor}" />
+    <SolidColorBrush x:Key="TrackOff" Color="{StaticResource TrackOffColor}" />
+    <SolidColorBrush x:Key="Stroke" Color="{StaticResource StrokeColor}" />
+    <SolidColorBrush x:Key="AccentHoverFill" Color="#22E4303F" />
+
+    <!-- Faint top-lighter vertical gradient for the body -->
+    <LinearGradientBrush x:Key="BgBodyGradient" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="{StaticResource BgBodyTopColor}" Offset="0" />
+        <GradientStop Color="{StaticResource BgBodyBottomColor}" Offset="1" />
+    </LinearGradientBrush>
+
+</ResourceDictionary>

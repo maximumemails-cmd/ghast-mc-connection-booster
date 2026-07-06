@@ -1,0 +1,196 @@
+<Window x:Class="Ghast.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        xmlns:vm="clr-namespace:Ghast.ViewModels"
+        xmlns:views="clr-namespace:Ghast.Views"
+        Title="Ghast — MC Connection Booster"
+        Width="1100" Height="715"
+        MinWidth="920" MinHeight="620"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="CanResizeWithGrip"
+        Background="{StaticResource BgBody}"
+        FontFamily="Segoe UI"
+        Foreground="{StaticResource TextWhite}">
+
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="72"
+                            ResizeBorderThickness="6"
+                            CornerRadius="0"
+                            GlassFrameThickness="0"
+                            UseAeroCaptionButtons="False" />
+    </shell:WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+            <views:SettingsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:PresetsViewModel}">
+            <views:PresetsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:AdvancedViewModel}">
+            <views:AdvancedView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:PingViewModel}">
+            <views:PingView />
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="72" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="64" />
+        </Grid.RowDefinitions>
+
+        <!-- ============ Header bar ============ -->
+        <Grid Grid.Row="0" Background="{StaticResource BgHeaderFooter}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Ghast logo: geometric white "G" ghost mark drawn as a vector path -->
+            <Viewbox Grid.Column="0" Width="44" Height="44" Margin="24,0,0,0"
+                     VerticalAlignment="Center">
+                <Canvas Width="28" Height="28">
+                    <Path Stroke="White" StrokeThickness="3.2"
+                          StrokeStartLineCap="Flat" StrokeEndLineCap="Flat"
+                          StrokeLineJoin="Miter"
+                          Data="M 23 4 H 10 C 6 4 4.5 5.5 4.5 9.5 V 16.5 C 4.5 20.5 6 22 10 22 H 15.5 M 15.5 22 V 14.5 H 23 M 23 14.5 V 18.5 M 19.5 22 V 26.5" />
+                </Canvas>
+            </Viewbox>
+
+            <!-- Tabs -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                <Button Content="Settings"
+                        Style="{StaticResource TabButton}"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                        Command="{Binding SelectTabCommand}" CommandParameter="Settings"
+                        Foreground="{Binding ActiveTab, Converter={StaticResource TabForeground}, ConverterParameter=Settings}" />
+                <Button Content="Presets"
+                        Style="{StaticResource TabButton}"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                        Command="{Binding SelectTabCommand}" CommandParameter="Presets"
+                        Foreground="{Binding ActiveTab, Converter={StaticResource TabForeground}, ConverterParameter=Presets}" />
+                <Button Content="Advanced"
+                        Style="{StaticResource TabButton}"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                        Command="{Binding SelectTabCommand}" CommandParameter="Advanced"
+                        Foreground="{Binding ActiveTab, Converter={StaticResource TabForeground}, ConverterParameter=Advanced}" />
+                <Button Content="Ping"
+                        Style="{StaticResource TabButton}"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                        Command="{Binding SelectTabCommand}" CommandParameter="Ping"
+                        Foreground="{Binding ActiveTab, Converter={StaticResource TabForeground}, ConverterParameter=Ping}" />
+            </StackPanel>
+
+            <!-- Window controls -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
+                <Button Style="{StaticResource WindowControlButton}"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                        Click="Minimize_Click">
+                    <Path Data="M 0 0.5 H 11" Stroke="White" StrokeThickness="1.4" />
+                </Button>
+                <Button Style="{StaticResource WindowControlButton}"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                        Click="MaximizeRestore_Click">
+                    <Path Data="M 0.7 0.7 H 10.3 V 10.3 H 0.7 Z" Stroke="White" StrokeThickness="1.4"
+                          Fill="Transparent" />
+                </Button>
+                <Button Style="{StaticResource WindowCloseButton}"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                        Click="Close_Click">
+                    <Path Data="M 0 0 L 11 11 M 11 0 L 0 11" Stroke="White" StrokeThickness="1.4" />
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- ============ Body ============ -->
+        <Grid Grid.Row="1" Background="{StaticResource BgBodyGradient}">
+            <!-- LayoutTransform (not RenderTransform/Viewbox) so text re-renders crisp at the
+                 scaled size. Scale is computed in code-behind on SizeChanged: content designed
+                 at 1280x800, grows up to 1.8x when maximized, never shrinks below 1.0. -->
+            <ContentControl x:Name="BodyHost" Content="{Binding CurrentViewModel}" Focusable="False">
+                <ContentControl.LayoutTransform>
+                    <ScaleTransform x:Name="BodyScale" ScaleX="1" ScaleY="1" />
+                </ContentControl.LayoutTransform>
+            </ContentControl>
+
+            <!-- Gear: app settings (DNS, restore defaults, backup location, tier) -->
+            <Button HorizontalAlignment="Right" VerticalAlignment="Top"
+                    Margin="0,20,26,0"
+                    Style="{StaticResource WindowControlButton}"
+                    Width="36" Height="36"
+                    Cursor="Hand"
+                    ToolTip="Ghast settings"
+                    Command="{Binding OpenAppSettingsCommand}">
+                <Path Width="26" Height="26" Stretch="Uniform" Fill="White"
+                      Data="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" />
+            </Button>
+        </Grid>
+
+        <!-- ============ Status strip (temporary, above footer) ============ -->
+        <Border Grid.Row="2" Background="#0D1224" Padding="24,8"
+                Visibility="{Binding StatusVisible, Converter={StaticResource BoolToVisibility}}">
+            <DockPanel>
+                <Button DockPanel.Dock="Right"
+                        Style="{StaticResource WindowControlButton}"
+                        Width="28" Height="24"
+                        Command="{Binding DismissStatusCommand}">
+                    <Path Data="M 0 0 L 8 8 M 8 0 L 0 8" Stroke="{StaticResource TextMuted}" StrokeThickness="1.4" />
+                </Button>
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Left" Text="{Binding StatusText}"
+                               Foreground="{StaticResource TextWhite}"
+                               FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,18,0" />
+                    <ItemsControl ItemsSource="{Binding StatusItems}" VerticalAlignment="Center">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,14,0"
+                                            ToolTip="{Binding Message}">
+                                    <TextBlock x:Name="Glyph" Text="✓" Foreground="#5FCB71" FontWeight="Bold"
+                                               Margin="0,0,4,0" />
+                                    <TextBlock Text="{Binding Item}" Foreground="{StaticResource TextMuted}" />
+                                </StackPanel>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding Success}" Value="False">
+                                        <Setter TargetName="Glyph" Property="Text" Value="✗" />
+                                        <Setter TargetName="Glyph" Property="Foreground"
+                                                Value="{StaticResource Accent}" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DockPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- ============ Footer bar ============ -->
+        <Grid Grid.Row="3" Background="{StaticResource BgHeaderFooter}">
+            <TextBlock VerticalAlignment="Center" Margin="24,0,0,0" FontSize="16">
+                <Run Text="Account Status: " Foreground="{StaticResource TextWhite}" /><Run
+                    Text="{Binding Tier}" Foreground="{StaticResource Accent}"
+                    FontWeight="SemiBold" /><Run Text=" user" Foreground="{StaticResource TextWhite}" />
+            </TextBlock>
+
+            <Button Content="Run"
+                    Style="{StaticResource RunButton}"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    Margin="0,0,24,0"
+                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
+                    Command="{Binding RunCommand}" />
+        </Grid>
+    </Grid>
+</Window>

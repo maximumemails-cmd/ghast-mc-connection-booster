@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Ghast</RootNamespace>
+    <AssemblyName>Ghast</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets/ghast.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <!-- Allows compiling the Windows-targeted WPF project from macOS/Linux dev machines. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+    <!-- SRV record resolution for the Ping tab (_minecraft._tcp lookups) -->
+    <PackageReference Include="DnsClient" Version="1.7.0" />
+  </ItemGroup>
+
+</Project>

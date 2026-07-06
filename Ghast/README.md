@@ -1,0 +1,165 @@
+# Ghast — MC Connection Booster
+
+A Windows network-tweaking tool for Minecraft players. It applies real Windows
+optimisations (registry values, `netsh`, QoS DSCP policies, process priority,
+adapter power settings), saves them as presets, and can **fully revert** every
+change it made.
+
+- .NET 8 · WPF · MVVM (`CommunityToolkit.Mvvm`) · no external UI frameworks
+- Requires **Administrator** (everything touches HKLM / netsh / adapters)
+- Data lives at `%AppData%\Ghast\` (`config.json`, `backup.json`, `presets\*.ghast`, `log.txt`)
+
+## Three honest truths (also in the tooltips)
+
+1. **Software cannot lower real latency.** Ping is distance + routing. Ghast only
+   removes delay that *Windows itself* adds (Nagle bundling, delayed ACKs,
+   background throttling).
+2. **Several tweaks are debatable** and can hurt some setups (e.g. disabling
+   delayed ACKs on lossy links). That's exactly why Restore Defaults exists.
+3. **Everything is reversible.** Before Ghast writes any value it captures the
+   original into `backup.json`; the first capture is never overwritten, so
+   *Restore Defaults* always returns the machine to its true pre-Ghast state.
+
+## Building
+
+```bash
+dotnet publish -c Release -r win-x64 \
+  -p:PublishSingleFile=true \
+  --self-contained true \
+  -p:IncludeNativeLibrariesForSelfExtract=true \
+  -p:EnableCompressionInSingleFile=true
+```
+
+Output: a single `Ghast.exe` that prompts for UAC on launch. The project sets
+`EnableWindowsTargeting=true`, so it also compiles on macOS/Linux dev machines
+(it only *runs* on Windows).
+
+## Installer
+
+`installer\Ghast.iss` builds a proper setup exe with [Inno Setup 6](https://jrsoftware.org/isinfo.php)
+(free; install it on a Windows machine — its compiler `ISCC.exe` is Windows-only).
+It installs to Program Files, creates a Start Menu shortcut, an optional desktop
+shortcut (checkbox, default on), a real Apps & Features entry with the Ghast icon,
+and a "Launch Ghast now" checkbox. Nothing is downloaded; it only bundles the
+published exe. To rebuild after changing the app:
+
+```bat
+dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true --self-contained true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
+"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\Ghast.iss
+```
+
+Output: `dist\Ghast-Setup.exe`. Uninstall removes the app and the startup Run key
+but deliberately **keeps** `%AppData%\Ghast` (backup.json holds the pre-Ghast
+values, so Restore Defaults still works after a reinstall).
+
+## First run & app options
+
+On the first launch after install, a one-time welcome dialog offers two toggles
+(both default OFF, both repeatable later from the bottom of the Settings tab):
+
+- **Start Ghast when Windows starts** — a per-user `HKCU\...\Run` entry. Honest
+  caveat (also in the tooltip): Ghast's manifest demands administrator, and some
+  Windows builds *silently skip* elevated apps at logon instead of prompting. If
+  autostart doesn't fire on your machine, that's Windows policy — a scheduled task
+  with highest privileges is the workaround if you ever want it.
+- **Pin Ghast to the taskbar** — best effort. Windows deliberately restricts
+  self-pinning, so Ghast uses Explorer's own pin handler (read from the registry
+  CommandStore at runtime) and *verifies* the result; if the build blocks it, the
+  toggle flips back and the status strip explains how to pin manually.
+
+The "first run done" flag lives in `config.json`, so the dialog never nags again.
+
+## Ping tab (connection tester)
+
+Real [Server List Ping](https://wiki.vg/Server_List_Ping) protocol: SRV lookup
+(`_minecraft._tcp.<host>`, via the **DnsClient** NuGet package) with fallback to
+the A record + port 25565, then TCP handshake (next state = 1), status request
+(MOTD, player count, version), and timed ping/pong rounds across ~8 seconds.
+Vanilla servers close after one pong, so each sample is its own short connection —
+the per-connection failure rate is what "failed pings" reports. Results: avg/min/max
+latency, jitter, loss, a 0–100 score with a letter grade, and plain-English ratings.
+The UI labels it honestly: it measures **your route to the server's edge**, not the
+server's internal proxy/routing.
+
+## Fullscreen scaling
+
+Body content is designed against 1280×800 and scales up via a `LayoutTransform`
+`ScaleTransform` recomputed on `SizeChanged`:
+`scale = clamp(min(w/1280, h/800), 1.0, 1.8)`. LayoutTransform re-renders text at
+the target size (crisp, no Viewbox blur), the cap keeps type from ballooning, and
+the floor means small windows just scroll. Maximized at 1080p ≈ 1.35×, at 1440p
+the 1.8× cap applies.
+
+## What each control really does
+
+| Control | Mechanism |
+|---|---|
+| Smart Packets | `TcpAckFrequency=1`, `TCPNoDelay=1` per active interface GUID (OFF deletes them) |
+| Latency / Packets Delay | `TcpDelAckTicks` per interface — **merged control, see below** |
+| Responsiveness | `SystemResponsiveness` (written value = `20 − slider`) |
+| Tuning | `netsh int tcp set global autotuninglevel=…` |
+| Type | Logic only — seeds sensible defaults for the other controls |
+| Connection Stable OFF | Clamps on Run: autotuning→Normal, delayed ACKs kept, congestion/MTU changes skipped |
+| Competitive Mode | Bundle: Smart Packets ON, Responsiveness max, `NetworkThrottlingIndex=0xFFFFFFFF`, Priority Mode ON, Power Saving handled ON — snapshots prior state so OFF restores it |
+| MTU | `netsh interface ipv4 set subinterface … mtu=… store=persistent` (Automatic = leave alone / restore original) |
+| Network Priority | QoS DSCP policy (level 1–5 → DSCP 10/18/26/34/46) + game process priority (Normal/AboveNormal/High) |
+| Congestion Provider | `netsh int tcp set supplemental template=internet congestionprovider=…` (pre-1709 fallback: `set global congestionprovider=`, CTCP/DCTCP only) |
+| Ghast Priority Mode | Minecraft process → High (never RealTime) + `Tasks\Games` multimedia keys (`Priority=6`, `Scheduling Category=High`, `SFIO Priority=High`) |
+| Network Power Saving ON | `PnPCapabilities=24` on the adapter's driver class key + `*EEE=0` where present (ON = power saving *disabled*) |
+| DNS (gear menu) | `netsh interface ip set dns … static` Cloudflare/Google; original config backed up, restore returns to DHCP/previous static |
+
+### The Latency ↔ Packets Delay merge
+
+Both sliders control the same Windows value (`TcpDelAckTicks`), so they are
+**merged**: *Packets Delay* (Advanced, 0–6) is authoritative and maps to
+`ticks = 6 − slider`; *Latency* (Settings, 0–4) mirrors it
+(`0→2 ticks default, 1→1, 2..4→0`). Moving either slider updates the other, and
+only one registry write happens on Run. Because the Latency mapping is coarser,
+mid-range Packets Delay values (ticks 3–6) all display as Latency 0 — that is
+lossy by design and only affects the mirror, never the written value.
+
+### Deviations from the build spec (flagged deliberately)
+
+- **Two QoS policies instead of one** (`Ghast-Minecraft-javaw`, `Ghast-Minecraft-java`):
+  Windows policy-based QoS matches a single `Application Name` per policy, and the
+  spec asks to cover both `javaw.exe` and `java.exe`.
+- **`ConfigService`** was added (config.json load/save helper) — infrastructure,
+  not a feature.
+- **`competitiveSnapshot`** is an extra field in the config schema so the
+  Competitive Mode OFF-restore survives an app restart.
+- **Preset order** persists in `presets\_order.json` (spec asks for drag
+  reordering but doesn't say where to store it).
+- **`firstRunDone`** is an extra config field backing the one-time welcome dialog.
+- **`DnsClient` NuGet package** was added for SRV record resolution on the Ping
+  tab (the only non-UI dependency besides `CommunityToolkit.Mvvm`).
+- Smart Packets OFF *deletes* `TcpAckFrequency`/`TCPNoDelay` per the spec — but the
+  pre-existing values are backed up first, so Restore Defaults still returns
+  whatever was there before Ghast.
+
+### Safety model
+
+- `app.manifest` demands `requireAdministrator`; a runtime check self-relaunches
+  elevated if a launcher ignored the manifest.
+- Every write path goes through `BackupService`: read current → record
+  `BackupEntry { type, path, name, originalValue, existedBefore }` → write.
+  Entries are keyed; the first capture wins forever.
+- **Restore Defaults** (gear menu) walks every entry: `existedBefore=false` →
+  delete the value/policy (and the parent key too if Ghast created it and it is
+  empty again); otherwise write the original back. netsh restore commands are
+  verified by exit code, and the backup store is cleared only if *every* restore
+  succeeded — a failed restore keeps `backup.json` so it can be retried.
+- Confirmation dialogs list the planned changes before Run and before Restore.
+- Process priority is capped at High; RealTime is never used.
+- Every registry/netsh call is wrapped: failures land in the status strip and
+  `%AppData%\Ghast\log.txt`, and the rest of the run continues.
+- The optional post-Run "flush" uses `ipconfig /flushdns` + a brief
+  disable/enable of each adapter (with an explicit "connection will drop" warning)
+  instead of the much heavier `netsh int ip reset`.
+
+### Notes
+
+- netsh output parsing (autotuning/congestion/MTU) is locale-tolerant but assumes
+  English column layout for MTU; on non-English Windows the current-value capture
+  falls back to documented defaults and logs it.
+- Test on a throwaway VM first: TCP/registry edits can break connectivity — the
+  whole point of `backup.json` is that you can undo.

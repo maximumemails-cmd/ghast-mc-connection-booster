@@ -1,0 +1,72 @@
+<UserControl x:Class="Ghast.Views.AdvancedView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Ghast.Controls">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel MaxWidth="760" HorizontalAlignment="Center" Margin="20,36,20,44">
+
+            <!-- MTU -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock Text="MTU Size" Style="{StaticResource SectionLabel}" />
+                <controls:InfoIcon Margin="10,0,0,0"
+                    Info="Largest packet size your connection carries without splitting. Leave Automatic unless you know your line's MTU — wrong values cause fragmentation and lag." />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,12,0,0">
+                <TextBlock Text="Automatic (Recommended)" Style="{StaticResource MutedLabel}" />
+                <controls:PillToggle IsChecked="{Binding MtuAutomatic}" Margin="14,0,0,0" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,14,0,0"
+                        Visibility="{Binding MtuAutomatic, Converter={StaticResource InverseBoolToVisibility}}">
+                <TextBlock Text="MTU (576–1500):" Style="{StaticResource MutedLabel}" Margin="0,0,10,0" />
+                <TextBox Style="{StaticResource GhastTextBox}" Width="110" Height="36"
+                         HorizontalContentAlignment="Center"
+                         Text="{Binding MtuValue, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+
+            <!-- Packets Delay -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,40,0,10">
+                <TextBlock Text="Packets Delay" Style="{StaticResource SectionLabel}" />
+                <controls:InfoIcon Margin="10,0,0,0"
+                    Info="Tunes the Windows delayed-ACK timer. Lower delay = received packets are acknowledged sooner. Honest note: software can't remove network delay — only the delay Windows itself adds. Mirrors the 'Latency' slider on the Settings tab (same Windows setting)." />
+            </StackPanel>
+            <Slider Style="{StaticResource RedSlider}" Minimum="0" Maximum="6"
+                    Value="{Binding PacketsDelay}" />
+
+            <!-- Network Priority -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,44,0,10">
+                <TextBlock Text="Network Priority" Style="{StaticResource SectionLabel}" />
+                <controls:InfoIcon Margin="10,0,0,0"
+                    Info="Tags your Minecraft traffic as high priority (a DSCP QoS policy for javaw.exe/java.exe) and raises the game process priority so it gets served first. 0 removes the policy; 5 is the highest tag (EF / DSCP 46)." />
+            </StackPanel>
+            <Slider Style="{StaticResource RedSlider}" Minimum="0" Maximum="5"
+                    Value="{Binding NetworkPriority}" />
+
+            <!-- Congestion Provider -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,44,0,12">
+                <TextBlock Text="Congestion Provider" Style="{StaticResource SectionLabel}" />
+                <controls:InfoIcon Margin="10,0,0,0"
+                    Info="The TCP congestion-control algorithm. CUBIC is the modern Windows default; CTCP is more aggressive on high-bandwidth links; DCTCP targets datacenter networks. 'Default' leaves Windows alone (and undoes an earlier Ghast change)." />
+            </StackPanel>
+            <ComboBox Style="{StaticResource GhastDropdown}" Width="370" HorizontalAlignment="Center"
+                      ItemsSource="{Binding CongestionOptions}"
+                      SelectedItem="{Binding CongestionProvider}" />
+
+            <!-- Ghast Priority Mode -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,44,0,0">
+                <TextBlock Text="Ghast Priority Mode" Style="{StaticResource SectionLabel}" />
+                <controls:PillToggle IsChecked="{Binding GhastPriorityMode}" Margin="16,0,10,0" />
+                <controls:InfoIcon
+                    Info="Boosts the running Minecraft process to High priority and raises the multimedia scheduler's 'Games' task class while you play. Never uses RealTime — that can freeze your PC." />
+            </StackPanel>
+
+            <!-- Network Power Saving -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,40,0,0">
+                <TextBlock Text="Network Power Saving Features" Style="{StaticResource SectionLabel}" />
+                <controls:PillToggle IsChecked="{Binding NetworkPowerSaving}" Margin="16,0,10,0" />
+                <controls:InfoIcon
+                    Info="ON stops Windows from putting your network adapter to sleep to save power, which can cause micro-stutters. OFF restores the adapter's default power management." />
+            </StackPanel>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

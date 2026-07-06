@@ -1,0 +1,60 @@
+<Window x:Class="Ghast.Views.AppSettingsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Ghast Settings"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="Height"
+        Width="480"
+        ShowInTaskbar="False"
+        Background="{StaticResource BgBody}"
+        FontFamily="Segoe UI"
+        Foreground="{StaticResource TextWhite}">
+    <Border BorderBrush="{StaticResource Stroke}" BorderThickness="1">
+        <StackPanel Margin="28,24">
+            <TextBlock Text="Ghast Settings" FontSize="19" FontWeight="Bold"
+                       Foreground="{StaticResource TextWhite}" />
+
+            <!-- DNS -->
+            <TextBlock Text="DNS optimisation" Style="{StaticResource SectionLabel}"
+                       FontSize="15" Margin="0,24,0,8" />
+            <TextBlock Style="{StaticResource MutedLabel}" FontSize="13" TextWrapping="Wrap"
+                       Text="Applied on the next Run. The previous DNS setting is backed up first." />
+            <ComboBox Style="{StaticResource GhastDropdown}" Height="44" Margin="0,10,0,0"
+                      SelectedValuePath="Tag"
+                      SelectedValue="{Binding DnsChoice}">
+                <ComboBoxItem Content="Leave alone" Tag="none" />
+                <ComboBoxItem Content="Cloudflare (1.1.1.1 / 1.0.0.1)" Tag="cloudflare" />
+                <ComboBoxItem Content="Google (8.8.8.8 / 8.8.4.4)" Tag="google" />
+            </ComboBox>
+
+            <!-- Tier label -->
+            <TextBlock Text="Account tier label" Style="{StaticResource SectionLabel}"
+                       FontSize="15" Margin="0,24,0,8" />
+            <TextBox Style="{StaticResource GhastTextBox}"
+                     Text="{Binding Tier, UpdateSourceTrigger=PropertyChanged}" />
+
+            <!-- Backup location -->
+            <TextBlock Text="Backups &amp; data" Style="{StaticResource SectionLabel}"
+                       FontSize="15" Margin="0,24,0,8" />
+            <TextBlock Text="{Binding BackupFolder}" Style="{StaticResource MutedLabel}"
+                       FontSize="13" TextWrapping="Wrap" />
+            <Button Content="Open Backup Folder" Style="{StaticResource OutlinedRedButton}"
+                    HorizontalAlignment="Left" Margin="0,10,0,0"
+                    Command="{Binding OpenBackupFolderCommand}" />
+
+            <!-- Restore -->
+            <TextBlock Text="Restore" Style="{StaticResource SectionLabel}"
+                       FontSize="15" Margin="0,24,0,8" />
+            <TextBlock Style="{StaticResource MutedLabel}" FontSize="13" TextWrapping="Wrap"
+                       Text="Puts every value Ghast has ever changed back to its pre-Ghast state, using the first-captured backups." />
+            <Button Content="Restore Defaults" Style="{StaticResource SolidRedButton}"
+                    HorizontalAlignment="Left" Margin="0,10,0,0"
+                    Click="RestoreDefaults_Click" />
+
+            <Button Content="Close" Style="{StaticResource OutlinedRedButton}"
+                    HorizontalAlignment="Right" Margin="0,26,0,0" Click="Close_Click" />
+        </StackPanel>
+    </Border>
+</Window>

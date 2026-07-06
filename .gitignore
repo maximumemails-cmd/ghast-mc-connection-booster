@@ -1,0 +1,17 @@
+# .NET build output
+bin/
+obj/
+publish/
+dist/
+
+# Rider / VS
+.vs/
+.idea/
+*.user
+*.suo
+
+# macOS
+.DS_Store
+
+# Logs / local artifacts
+*.binlog
