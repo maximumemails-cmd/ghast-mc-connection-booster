@@ -3,6 +3,7 @@ bin/
 obj/
 publish/
 dist/
+installer/Output/
 
 # Rider / VS
 .vs/

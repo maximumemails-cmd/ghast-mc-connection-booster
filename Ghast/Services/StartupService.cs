@@ -29,6 +29,35 @@ public class StartupService
         }
     }
 
+    /// <summary>
+    /// Called at launch: if autostart is enabled but points at a stale location (the app was
+    /// moved, or upgraded from a portable exe to an installed one), rewrite it to this exe.
+    /// </summary>
+    public void RefreshPathIfEnabled()
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(RunKey, writable: true);
+            if (key?.GetValue(ValueName) is not string current)
+                return;
+            var exe = Environment.ProcessPath;
+            if (exe is null)
+                return;
+            var expected = $"\"{exe}\"";
+            if (!string.Equals(current, expected, StringComparison.OrdinalIgnoreCase))
+            {
+                key.SetValue(ValueName, expected);
+                Logger.Log($"startup entry path refreshed: {current} -> {expected}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("refreshing startup Run key", ex);
+        }
+    }
+
     public void SetEnabled(bool enabled)
     {
         if (!OperatingSystem.IsWindows())

@@ -10,7 +10,10 @@
     <AssemblyName>Ghast</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets/ghast.ico</ApplicationIcon>
-    <Version>1.0.0</Version>
+    <Version>3.0.0</Version>
+    <AssemblyVersion>3.0.0.0</AssemblyVersion>
+    <FileVersion>3.0.0.0</FileVersion>
+    <InformationalVersion>3.0.0</InformationalVersion>
     <!-- Allows compiling the Windows-targeted WPF project from macOS/Linux dev machines. -->
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>

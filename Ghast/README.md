@@ -36,21 +36,30 @@ Output: a single `Ghast.exe` that prompts for UAC on launch. The project sets
 
 ## Installer
 
-`installer\Ghast.iss` builds a proper setup exe with [Inno Setup 6](https://jrsoftware.org/isinfo.php)
-(free; install it on a Windows machine — its compiler `ISCC.exe` is Windows-only).
-It installs to Program Files, creates a Start Menu shortcut, an optional desktop
-shortcut (checkbox, default on), a real Apps & Features entry with the Ghast icon,
-and a "Launch Ghast now" checkbox. Nothing is downloaded; it only bundles the
-published exe. To rebuild after changing the app:
+`installer/Ghast.iss` (repo root) builds a proper setup exe with
+[Inno Setup 6](https://jrsoftware.org/isinfo.php). It installs to Program Files,
+creates Start Menu + optional desktop shortcuts, registers in Apps & Features with
+the Ghast icon, and offers "Launch Ghast now". Nothing is downloaded; it only
+bundles the published exe.
+
+**Upgrades replace the old version and keep user data**: the `[Setup]` block uses a
+fixed `AppId` GUID (never change it), and the `[Code]` section backs up
+`%AppData%\Ghast` (settings, presets, and `backup.json` with the pre-Ghast values),
+silently uninstalls any previous install, installs clean, then restores the folder.
+Uninstall removes program files and the startup Run key but never touches
+`%AppData%\Ghast`.
+
+The installer builds in CI (`.github/workflows/build-installer.yml`, windows-latest):
+pushing a `v*` tag builds `Ghast-Setup.exe` and attaches it to a GitHub **Release**;
+`workflow_dispatch` builds it as a run artifact on demand. To build locally on a
+Windows machine instead:
 
 ```bat
-dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true --self-contained true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
+dotnet publish Ghast/Ghast.csproj -c Release -r win-x64 -p:PublishSingleFile=true --self-contained true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
 "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\Ghast.iss
 ```
 
-Output: `dist\Ghast-Setup.exe`. Uninstall removes the app and the startup Run key
-but deliberately **keeps** `%AppData%\Ghast` (backup.json holds the pre-Ghast
-values, so Restore Defaults still works after a reinstall).
+Output: `installer\Output\Ghast-Setup.exe`.
 
 ## First run & app options
 

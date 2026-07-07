@@ -189,6 +189,11 @@ public class RegistryService
                 }
                 else
                 {
+                    // Exact restore: wipe the key first so values Ghast ADDED to a
+                    // pre-existing key don't survive, then recreate the originals.
+                    DeleteSubKeyTreeNoBackup(entry.Path);
+                    using (var root = OpenBase())
+                        root.CreateSubKey(entry.Path)?.Dispose(); // key existed before — recreate even if it was empty
                     var values = JsonSerializer.Deserialize<Dictionary<string, string[]>>(entry.OriginalValue ?? "{}")
                                  ?? new();
                     foreach (var (name, pair) in values)

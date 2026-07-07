@@ -53,6 +53,7 @@ public partial class App : Application
         var presetService = new PresetService();
         var apply = new ApplyService(registry, netsh, qos, adapters, process, backup, configService);
         var startup = new StartupService();
+        startup.RefreshPathIfEnabled(); // fix stale autostart path after an upgrade/move
         var taskbarPin = new TaskbarPinService();
         var ping = new PingService();
         var dialogs = new DialogService();

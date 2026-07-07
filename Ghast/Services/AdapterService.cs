@@ -77,9 +77,16 @@ public class AdapterService
         {
             _registry.SetDword(path, "PnPCapabilities", 24);
 
-            var (_, _, eeeExists) = _registry.Read(path, "*EEE");
+            // Drivers declare *EEE with different value kinds — write back the same kind
+            // so the driver keeps parsing it (most use REG_SZ, some use REG_DWORD).
+            var (_, eeeKind, eeeExists) = _registry.Read(path, "*EEE");
             if (eeeExists)
-                _registry.SetString(path, "*EEE", "0");
+            {
+                if (eeeKind == Microsoft.Win32.RegistryValueKind.DWord)
+                    _registry.SetDword(path, "*EEE", 0);
+                else
+                    _registry.SetString(path, "*EEE", "0");
+            }
         }
         else
         {

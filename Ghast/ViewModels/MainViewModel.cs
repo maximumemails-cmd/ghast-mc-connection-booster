@@ -126,6 +126,10 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void RunOrStop()
     {
+        // IsBusy covers the gear-menu Restore Defaults pass — never run two
+        // apply/revert operations concurrently.
+        if (IsBusy)
+            return;
         if (RunState == AppRunState.Idle)
             StartFlow();
         else if (RunState == AppRunState.Running)

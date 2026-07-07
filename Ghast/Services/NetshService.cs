@@ -20,6 +20,8 @@ public class NetshService
         _registry = registry;
     }
 
+    private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(30);
+
     public async Task<(int ExitCode, string Output)> RunAsync(string args)
     {
         var psi = new ProcessStartInfo("netsh", args)
@@ -33,10 +35,23 @@ public class NetshService
         };
         using var proc = Process.Start(psi)
                          ?? throw new InvalidOperationException("Failed to start netsh");
-        var stdout = await proc.StandardOutput.ReadToEndAsync();
-        var stderr = await proc.StandardError.ReadToEndAsync();
-        await proc.WaitForExitAsync();
-        var output = (stdout + stderr).Trim();
+        var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+        var stderrTask = proc.StandardError.ReadToEndAsync();
+
+        // Bounded wait: a wedged netsh must never hang an apply/revert pass forever.
+        using var cts = new CancellationTokenSource(CommandTimeout);
+        try
+        {
+            await proc.WaitForExitAsync(cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            try { proc.Kill(entireProcessTree: true); } catch { /* already gone */ }
+            Logger.Log($"netsh {args} -> TIMED OUT after {CommandTimeout.TotalSeconds}s (killed)");
+            return (-1, $"netsh timed out after {CommandTimeout.TotalSeconds} seconds");
+        }
+
+        var output = (await stdoutTask + await stderrTask).Trim();
         Logger.Log($"netsh {args} -> exit {proc.ExitCode}{(proc.ExitCode != 0 ? $": {output}" : "")}");
         return (proc.ExitCode, output);
     }

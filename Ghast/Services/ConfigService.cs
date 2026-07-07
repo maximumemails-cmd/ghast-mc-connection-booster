@@ -40,9 +40,18 @@ public class ConfigService
         }
     }
 
-    /// <summary>Clamps out-of-range values from hand-edited or imported files.</summary>
-    public static GhastConfig Sanitize(GhastConfig c)
+    /// <summary>
+    /// Clamps out-of-range values from hand-edited or imported files. Null-tolerant so a
+    /// config/preset written by an older (or future) version can never crash the load path:
+    /// missing sections get defaults, bad values get clamped, unknown options get canonical fallbacks.
+    /// </summary>
+    public static GhastConfig Sanitize(GhastConfig? c)
     {
+        c ??= new GhastConfig();
+        c.Settings ??= new SettingsSection();   // explicit "settings": null in old/edited JSON
+        c.Advanced ??= new AdvancedSection();
+        c.Dns ??= "none";
+
         c.Settings.Latency = Math.Clamp(c.Settings.Latency, 0, 4);
         c.Settings.Responsiveness = Math.Clamp(c.Settings.Responsiveness, 0, 20);
         c.Advanced.PacketsDelay = Math.Clamp(c.Advanced.PacketsDelay, 0, 6);
