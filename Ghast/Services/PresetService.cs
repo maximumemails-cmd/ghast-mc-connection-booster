@@ -26,6 +26,7 @@ public class PresetService
                 {
                     preset.Config = ConfigService.Sanitize(preset.Config);
                     preset.FilePath = file;
+                    preset.IsBuiltIn = BuiltInNames.Contains(preset.Name);
                     presets.Add(preset);
                 }
             }
@@ -175,96 +176,190 @@ public class PresetService
         return clean.Length == 0 ? "preset" : clean;
     }
 
-    /// <summary>First-launch demo presets — deliberately different from each other (spec §9).</summary>
+    /// <summary>
+    /// Ensures the baked-in presets exist. On first launch it seeds the four demo presets plus
+    /// the eight built-ins; for existing users it adds only any missing built-ins (so upgrades
+    /// gain them, and deleting a built-in re-creates it — they are protected baked-ins).
+    /// </summary>
     public void EnsureSeeded()
     {
         Paths.EnsureCreated();
-        if (Directory.EnumerateFiles(Paths.PresetsDir, "*.ghast").Any() || File.Exists(OrderPath))
+        var hasFiles = Directory.EnumerateFiles(Paths.PresetsDir, "*.ghast").Any();
+        var demos = DemoPresets();
+        var builtins = BuiltInPresets();
+
+        var existing = hasFiles
+            ? LoadAll().Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var toAdd = new List<Preset>();
+        if (!hasFiles)
+            toAdd.AddRange(demos.Where(d => !existing.Contains(d.Name)));
+        toAdd.AddRange(builtins.Where(b => !existing.Contains(b.Name)));
+
+        if (toAdd.Count == 0)
             return;
 
-        var seeds = new List<Preset>
-        {
-            new()
-            {
-                // Full aggressive PvP profile.
-                Name = "Nodebuff MMC",
-                Config = new GhastConfig
-                {
-                    Settings = new SettingsSection
-                    {
-                        SmartPackets = true, Latency = 4, Responsiveness = 20,
-                        Tuning = "Normal", Type = "Fiber", ConnectionStable = true, CompetitiveMode = true
-                    },
-                    Advanced = new AdvancedSection
-                    {
-                        MtuAutomatic = true, MtuValue = 1500, PacketsDelay = 6, NetworkPriority = 5,
-                        CongestionProvider = "CTCP", GhastPriorityMode = true, NetworkPowerSaving = true
-                    },
-                    Dns = "cloudflare"
-                }
-            },
-            new()
-            {
-                // Aggressive but no competitive bundle and no DNS change.
-                Name = "Sumo",
-                Config = new GhastConfig
-                {
-                    Settings = new SettingsSection
-                    {
-                        SmartPackets = true, Latency = 3, Responsiveness = 16,
-                        Tuning = "Normal", Type = "Fiber", ConnectionStable = true, CompetitiveMode = false
-                    },
-                    Advanced = new AdvancedSection
-                    {
-                        MtuAutomatic = true, MtuValue = 1500, PacketsDelay = 6, NetworkPriority = 4,
-                        CongestionProvider = "CUBIC", GhastPriorityMode = true, NetworkPowerSaving = true
-                    },
-                    Dns = "none"
-                }
-            },
-            new()
-            {
-                // Balanced middle ground.
-                Name = "FanCraft Rush 1.9",
-                Config = new GhastConfig
-                {
-                    Settings = new SettingsSection
-                    {
-                        SmartPackets = true, Latency = 1, Responsiveness = 12,
-                        Tuning = "Restricted", Type = "Cable", ConnectionStable = true, CompetitiveMode = false
-                    },
-                    Advanced = new AdvancedSection
-                    {
-                        MtuAutomatic = true, MtuValue = 1500, PacketsDelay = 5, NetworkPriority = 3,
-                        CongestionProvider = "Default", GhastPriorityMode = true, NetworkPowerSaving = true
-                    },
-                    Dns = "none"
-                }
-            },
-            new()
-            {
-                // Conservative: unstable-connection clamps on, explicit full-size MTU.
-                Name = "Build UHC 1.8",
-                Config = new GhastConfig
-                {
-                    Settings = new SettingsSection
-                    {
-                        SmartPackets = false, Latency = 0, Responsiveness = 6,
-                        Tuning = "Restricted", Type = "DSL", ConnectionStable = false, CompetitiveMode = false
-                    },
-                    Advanced = new AdvancedSection
-                    {
-                        MtuAutomatic = false, MtuValue = 1500, PacketsDelay = 4, NetworkPriority = 1,
-                        CongestionProvider = "Default", GhastPriorityMode = false, NetworkPowerSaving = false
-                    },
-                    Dns = "none"
-                }
-            }
-        };
-
-        foreach (var preset in seeds)
+        foreach (var preset in toAdd)
             Save(preset);
-        SaveOrder(seeds.Select(p => p.Name));
-        Logger.Log("seeded demo presets");
+
+        // First launch: define the whole order. Otherwise append the newly added built-ins.
+        var order = LoadOrder();
+        if (order.Count == 0)
+            order = demos.Select(p => p.Name).Concat(builtins.Select(p => p.Name)).ToList();
+        else
+            order.AddRange(toAdd.Select(a => a.Name).Where(n => !order.Contains(n)));
+        SaveOrder(order);
+        Logger.Log($"seeded {toAdd.Count} preset(s)");
     }
+
+    // ---------- built-in preset catalogue ----------
+
+    /// <summary>Names of the eight baked-in presets (protected from deletion, shown in Explain).</summary>
+    public static readonly IReadOnlySet<string> BuiltInNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "Best Hit-Reg", "Best KB", "1.8.9 Balanced", "Modern Balanced",
+        "Competitive Max", "Stable Wi-Fi", "BedWars Rush", "High-Ping Fix"
+    };
+
+    /// <summary>The original four demo presets — kept exactly as before, deletable.</summary>
+    private static List<Preset> DemoPresets() => new()
+    {
+        new()
+        {
+            Name = "Nodebuff MMC",
+            Config = new GhastConfig
+            {
+                Settings = new SettingsSection
+                {
+                    SmartPackets = true, Latency = 4, Responsiveness = 20,
+                    Tuning = "Normal", Type = "Fiber", ConnectionStable = true, CompetitiveMode = true
+                },
+                Advanced = new AdvancedSection
+                {
+                    MtuAutomatic = true, MtuValue = 1500, PacketsDelay = 6, NetworkPriority = 5,
+                    CongestionProvider = "CTCP", GhastPriorityMode = true, NetworkPowerSaving = true
+                },
+                Dns = "cloudflare"
+            }
+        },
+        new()
+        {
+            Name = "Sumo",
+            Config = new GhastConfig
+            {
+                Settings = new SettingsSection
+                {
+                    SmartPackets = true, Latency = 3, Responsiveness = 16,
+                    Tuning = "Normal", Type = "Fiber", ConnectionStable = true, CompetitiveMode = false
+                },
+                Advanced = new AdvancedSection
+                {
+                    MtuAutomatic = true, MtuValue = 1500, PacketsDelay = 6, NetworkPriority = 4,
+                    CongestionProvider = "CUBIC", GhastPriorityMode = true, NetworkPowerSaving = true
+                },
+                Dns = "none"
+            }
+        },
+        new()
+        {
+            Name = "FanCraft Rush 1.9",
+            Config = new GhastConfig
+            {
+                Settings = new SettingsSection
+                {
+                    SmartPackets = true, Latency = 1, Responsiveness = 12,
+                    Tuning = "Restricted", Type = "Cable", ConnectionStable = true, CompetitiveMode = false
+                },
+                Advanced = new AdvancedSection
+                {
+                    MtuAutomatic = true, MtuValue = 1500, PacketsDelay = 5, NetworkPriority = 3,
+                    CongestionProvider = "Default", GhastPriorityMode = true, NetworkPowerSaving = true
+                },
+                Dns = "none"
+            }
+        },
+        new()
+        {
+            Name = "Build UHC 1.8",
+            Config = new GhastConfig
+            {
+                Settings = new SettingsSection
+                {
+                    SmartPackets = false, Latency = 0, Responsiveness = 6,
+                    Tuning = "Restricted", Type = "DSL", ConnectionStable = false, CompetitiveMode = false
+                },
+                Advanced = new AdvancedSection
+                {
+                    MtuAutomatic = false, MtuValue = 1500, PacketsDelay = 4, NetworkPriority = 1,
+                    CongestionProvider = "Default", GhastPriorityMode = false, NetworkPowerSaving = false
+                },
+                Dns = "none"
+            }
+        }
+    };
+
+    // FLAG: polarity — NetworkPowerSaving == true means "adapter power management DISABLED"
+    // (the low-latency state the follow-up table calls NIC Power "OFF"). All built-ins use true.
+    // FLAG: the table's Latency (0–4) is mapped onto the authoritative PacketsDelay via
+    // PacketsDelay = 6 - (table ticks): L4→PD6 (delayed-ACK off), L3→PD5, L2→PD4. The Settings
+    // "Latency" slider is a coarse mirror and is recomputed from PacketsDelay on load.
+    // FLAG: ConnectionStable is left true on all (incl. Stable Wi-Fi) so the explicit Tuning
+    // value isn't clamped to Normal by the unstable-connection safeguard.
+    private static Preset BuiltIn(string name, bool smartPackets, int latency, int responsiveness,
+        string tuning, bool competitive, string congestion, int netPriority, string type) => new()
+    {
+        Name = name,
+        IsBuiltIn = true,
+        Config = new GhastConfig
+        {
+            Settings = new SettingsSection
+            {
+                SmartPackets = smartPackets, Latency = latency, Responsiveness = responsiveness,
+                Tuning = tuning, Type = type, ConnectionStable = true, CompetitiveMode = competitive
+            },
+            Advanced = new AdvancedSection
+            {
+                MtuAutomatic = true, MtuValue = 1500,
+                PacketsDelay = Math.Clamp(6 - (4 - latency), 0, 6), // table Latency → ticks → PacketsDelay
+                NetworkPriority = netPriority,
+                CongestionProvider = congestion,
+                GhastPriorityMode = true,      // Priority ON on every built-in
+                NetworkPowerSaving = true      // NIC power management disabled (low-latency)
+            },
+            Dns = "none"
+        }
+    };
+
+    /// <summary>The eight baked-in presets from the follow-up spec table.</summary>
+    private static List<Preset> BuiltInPresets() => new()
+    {
+        //     name                smart  lat resp  tuning        comp   congestion  netPri type
+        BuiltIn("Best Hit-Reg",    true,  4,  20,   "Normal",     true,  "Default",  5,     "Fiber"),
+        BuiltIn("Best KB",         true,  4,  20,   "Normal",     true,  "CTCP",     5,     "Fiber"),
+        BuiltIn("1.8.9 Balanced",  true,  3,  18,   "Normal",     true,  "Default",  4,     "Fiber"),
+        BuiltIn("Modern Balanced", true,  3,  16,   "Normal",     false, "Default",  4,     "Fiber"),
+        BuiltIn("Competitive Max", true,  4,  20,   "Normal",     true,  "CTCP",     5,     "Fiber"),
+        BuiltIn("Stable Wi-Fi",    true,  2,  15,   "Restricted", false, "Default",  4,     "WiFi"),
+        BuiltIn("BedWars Rush",    true,  4,  20,   "Normal",     true,  "Default",  5,     "Fiber"),
+        BuiltIn("High-Ping Fix",   true,  3,  16,   "Normal",     false, "CTCP",     3,     "Satellite")
+    };
+
+    /// <summary>Honest header + one-liners for the "What do these do?" popup.</summary>
+    public const string BuiltInIntro =
+        "These presets tune your PC's connection — jitter, delay Windows adds, and CPU priority. " +
+        "They don't change server-side things like actual knockback or tick rate. Several presets " +
+        "share most settings because the real gains come from connection quality, not the game version.";
+
+    public static IReadOnlyList<PresetExplanation> Explanations { get; } = new List<PresetExplanation>
+    {
+        new("Best Hit-Reg", "Rawest low-delay setup: Nagle off, delayed-ACK off, max responsiveness, game process prioritised, NIC power saving off. Sends your attack packets instantly with the least self-inflicted jitter, so hits register cleanly. Limit: hit-reg is mostly ping + server tick + your FPS — this removes Windows-added delay, it can't fix a laggy server."),
+        new("Best KB", "Same low-delay base, tuned for the steadiest packet flow (steadier congestion control). Makes knockback feel consistent instead of arriving in laggy clumps. Limit: the amount of knockback is 100% server-side — no PC setting increases it. This only affects consistency."),
+        new("1.8.9 Balanced", "For classic click-spam PvP (no attack cooldown). Fast, steady packet delivery without maxing every dial, so it stays stable on normal connections."),
+        new("Modern Balanced", "For 1.9+ combat (attack cooldown, sweep). Timing beats spam here, so it favours consistency and low jitter over raw aggression."),
+        new("Competitive Max", "Everything cranked: lowest self-inflicted delay, max responsiveness, top priority. Best on a stable wired connection; can feel less smooth on a flaky one."),
+        new("Stable Wi-Fi", "For wireless / flaky connections. Turns off NIC power saving (the big Wi-Fi latency-spike culprit) and uses restricted TCP tuning to keep things steady rather than fast."),
+        new("BedWars Rush", "Fast-and-loose for Hypixel-style rush games: instant small packets, max responsiveness, high priority. Built for quick bridging and spammy fights."),
+        new("High-Ping Fix", "For distant servers. Keeps TCP auto-tuning open so the receive window can grow for high-latency links, and steadies congestion control so throughput doesn't collapse.")
+    };
 }

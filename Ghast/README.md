@@ -152,9 +152,47 @@ lossy by design and only affects the mirror, never the written value.
 - Process priority is capped at High; RealTime is never used.
 - Every registry/netsh call is wrapped: failures land in the status strip and
   `%AppData%\Ghast\log.txt`, and the rest of the run continues.
-- The optional post-Run "flush" uses `ipconfig /flushdns` + a brief
-  disable/enable of each adapter (with an explicit "connection will drop" warning)
-  instead of the much heavier `netsh int ip reset`.
+- `AdapterService.FlushAsync` (flushdns + adapter bounce) still exists but is no
+  longer surfaced: the follow-up Run/Stop flow replaced the old post-Run flush
+  prompt. Wire it to a gear-menu button if you want it back.
+
+## Run / Stop flow
+
+The footer button is a stateful toggle driven by `MainViewModel.RunState`
+(`Idle → Starting → Running → Stopping`):
+
+- **Run** (Idle) opens a modal progress popup (`RunProgressWindow`) with a red
+  progress bar and live step text driven by real `ApplyService` progress
+  (`IProgress<ApplyProgress>`), held open ≥900 ms so it can't flash. On success it
+  flips to **Running** and offers **Stop**/**Close**; on any failed step it rolls
+  the whole pass back via `RestoreAllAsync` and offers **Retry**/**Close** so the
+  machine is never left half-applied.
+- **Stop** (Running) reuses the popup to run `RestoreAllAsync`, reverting every
+  captured value, then returns to **Idle**.
+- The footer is disabled during `Starting`/`Stopping` so clicks can't stack
+  applies/reverts. On launch, `RunState` starts as **Running** if `backup.json`
+  already holds values (tweaks are live from a previous session).
+- Closing the window while **Running** prompts *revert / leave applied / cancel*.
+  The revert path runs on the thread pool (`Task.Run(...).GetAwaiter().GetResult()`)
+  to avoid a sync-over-async UI-thread deadlock.
+
+## Presets: built-ins + Explain
+
+Eight baked-in presets are added alongside the original four demos: *Best Hit-Reg,
+Best KB, 1.8.9 Balanced, Modern Balanced, Competitive Max, Stable Wi-Fi, BedWars
+Rush, High-Ping Fix*. They are built **only** from existing `GhastConfig` fields
+(no invented settings), marked `IsBuiltIn` (protected from deletion, re-seeded if
+missing so upgrades gain them), and explained honestly in a **ⓘ Explain** popup on
+the Presets tab. Mapping notes (also `// FLAG:` comments in `PresetService`):
+
+- The table's *Latency* (0–4) maps onto the authoritative `PacketsDelay` as
+  `PacketsDelay = 2 + latency` (L4 → delayed-ACK off); the Settings "Latency"
+  slider is a coarse mirror recomputed on load.
+- *NIC Power "OFF"* (low-latency) = `NetworkPowerSaving = true` (the toggle's
+  `true` means "adapter power management disabled").
+- `ConnectionStable` stays `true` on all built-ins (incl. Stable Wi-Fi) so an
+  explicit `Tuning` value isn't clamped to Normal by the unstable-connection guard.
+- CTCP rows use `CTCP` (the dropdown already exposes it — no fallback needed).
 
 ### Notes
 

@@ -39,7 +39,8 @@ public partial class MainViewModel : ObservableObject
             BuildConfig,
             ApplyPresetAsync,
             title => _dialogs.Prompt(title, "Preset name"),
-            (title, lines, confirm) => _dialogs.Confirm(title, lines, confirm));
+            (title, lines, confirm) => _dialogs.Confirm(title, lines, confirm),
+            _dialogs.ShowPresetExplanations);
 
         Settings.PropertyChanged += OnSettingsChanged;
         Advanced.PropertyChanged += OnAdvancedChanged;
@@ -51,6 +52,9 @@ public partial class MainViewModel : ObservableObject
         Settings.StartWithWindows = _startup.IsEnabled();
         Settings.PinToTaskbar = _taskbarPin.IsPinned();
         _loading = false;
+
+        // If backup.json already holds captured values, Ghast tweaks are live → start in Running.
+        RunState = _backup.Count > 0 ? AppRunState.Running : AppRunState.Idle;
 
         CurrentViewModel = Settings;
     }
@@ -86,6 +90,20 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty] private bool _isBusy;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsRunning))]
+    [NotifyPropertyChangedFor(nameof(FooterButtonText))]
+    [NotifyPropertyChangedFor(nameof(FooterEnabled))]
+    private AppRunState _runState = AppRunState.Idle;
+
+    public bool IsRunning => RunState == AppRunState.Running;
+
+    /// <summary>Footer toggle label: Run when idle, Stop when active.</summary>
+    public string FooterButtonText => RunState is AppRunState.Running or AppRunState.Stopping ? "Stop" : "Run";
+
+    /// <summary>Footer is disabled mid-transition so double-clicks can't stack applies/reverts.</summary>
+    public bool FooterEnabled => RunState is AppRunState.Idle or AppRunState.Running;
+
     public string BackupFolder => Paths.DataDir;
 
     // ---------- tabs ----------
@@ -103,69 +121,96 @@ public partial class MainViewModel : ObservableObject
         };
     }
 
-    // ---------- run / restore ----------
+    // ---------- run / stop (stateful footer toggle) ----------
 
     [RelayCommand]
-    private async Task RunAsync()
+    private void RunOrStop()
     {
-        if (IsBusy)
-            return;
+        if (RunState == AppRunState.Idle)
+            StartFlow();
+        else if (RunState == AppRunState.Running)
+            StopFlow();
+        // Starting / Stopping: mid-transition, the button is disabled — ignore.
+    }
 
+    private void StartFlow()
+    {
         var config = BuildConfig();
         var plan = _apply.BuildPlan(config);
         if (!_dialogs.Confirm("Run Ghast — apply these tweaks?", plan, "Run"))
             return;
 
-        IsBusy = true;
-        StatusItems.Clear();
-        StatusVisible = true;
-        StatusText = "Applying…";
-        var progress = new Progress<ApplyResult>(r =>
-        {
-            StatusItems.Add(r);
-            StatusText = $"Applying… ({StatusItems.Count} done)";
-        });
-
-        List<ApplyResult> results;
+        RunState = AppRunState.Starting;
+        RunProgressOutcome outcome;
         try
         {
-            results = await Task.Run(() => _apply.RunAsync(config, progress));
+            outcome = _dialogs.ShowRunProgress(RunProgressMode.Start,
+                progress => StartOperationAsync(config, progress));
         }
         catch (Exception ex)
         {
-            Logger.Error("run", ex);
-            StatusText = $"Run failed: {ex.Message}";
-            IsBusy = false;
-            return;
+            Logger.Error("start flow", ex);
+            outcome = RunProgressOutcome.Failed;
         }
 
-        var ok = results.Count(r => r.Success);
-        StatusText = $"Applied {ok}/{results.Count} tweaks";
-        IsBusy = false;
-
-        if (ok > 0 && _dialogs.Confirm("Flush the network stack now? (optional)",
-                new[]
-                {
-                    "Flushes the DNS cache and briefly disables/re-enables each network adapter",
-                    "so the TCP changes take effect without a reboot.",
-                    "Your connection WILL drop for a few seconds."
-                }, "Flush"))
+        if (outcome is RunProgressOutcome.Completed or RunProgressOutcome.StopRequested)
         {
-            IsBusy = true;
-            StatusText = "Flushing network stack…";
-            try
-            {
-                await Task.Run(() => _apply.FlushAsync());
-                StatusText = $"Applied {ok}/{results.Count} tweaks — network stack flushed";
-            }
-            catch (Exception ex)
-            {
-                Logger.Error("flush", ex);
-                StatusText = $"Flush failed: {ex.Message}";
-            }
-            IsBusy = false;
+            RunState = AppRunState.Running;
+            SaveConfig();
+            if (outcome == RunProgressOutcome.StopRequested)
+                StopFlow();
+        }
+        else
+        {
+            // Failed → StartOperationAsync already rolled back any partial changes.
+            RunState = AppRunState.Idle;
         }
     }
+
+    private void StopFlow()
+    {
+        RunState = AppRunState.Stopping;
+        RunProgressOutcome outcome;
+        try
+        {
+            outcome = _dialogs.ShowRunProgress(RunProgressMode.Stop, StopOperationAsync);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("stop flow", ex);
+            outcome = RunProgressOutcome.Failed;
+        }
+
+        // Fully reverted → Idle; a failed revert keeps tweaks applied → stay Running.
+        RunState = outcome == RunProgressOutcome.Completed || _backup.Count == 0
+            ? AppRunState.Idle
+            : AppRunState.Running;
+        SaveConfig();
+    }
+
+    /// <summary>
+    /// Apply pass for the Start popup. On any failed step it rolls everything back so the
+    /// machine is never left half-applied. Returns true only if every step succeeded.
+    /// </summary>
+    private async Task<bool> StartOperationAsync(GhastConfig config, IProgress<ApplyProgress> progress)
+    {
+        var results = await _apply.RunAsync(config, progress);
+        if (results.All(r => r.Success))
+            return true;
+
+        progress.Report(new ApplyProgress(100, "Rolling back partial changes…"));
+        await _apply.RestoreAllAsync(null);
+        return false;
+    }
+
+    /// <summary>Restore pass for the Stop popup. Returns true if every value went back.</summary>
+    private async Task<bool> StopOperationAsync(IProgress<ApplyProgress> progress)
+    {
+        var results = await _apply.RestoreAllAsync(progress);
+        return results.All(r => r.Success);
+    }
+
+    // ---------- restore defaults (gear menu — status strip, no popup) ----------
 
     [RelayCommand]
     private async Task RestoreDefaultsAsync()
@@ -185,12 +230,38 @@ public partial class MainViewModel : ObservableObject
         StatusItems.Clear();
         StatusVisible = true;
         StatusText = "Restoring…";
-        var progress = new Progress<ApplyResult>(r => StatusItems.Add(r));
+        var progress = new Progress<ApplyProgress>(p =>
+        {
+            if (p.Result is { } r) StatusItems.Add(r);
+        });
 
         var results = await Task.Run(() => _apply.RestoreAllAsync(progress));
         var ok = results.Count(r => r.Success);
         StatusText = $"Restored {ok}/{results.Count} item(s)";
+        RunState = _backup.Count == 0 ? AppRunState.Idle : AppRunState.Running;
         IsBusy = false;
+    }
+
+    // ---------- close guard ----------
+
+    public CloseChoice PromptCloseChoice() => _dialogs.PromptClose();
+
+    /// <summary>
+    /// Synchronous revert used on window close (blocking is fine — we're exiting). Runs on the
+    /// thread pool via Task.Run so the inner awaits don't try to resume on the blocked UI thread
+    /// (which would deadlock).
+    /// </summary>
+    public void RevertBeforeClose()
+    {
+        try
+        {
+            Task.Run(() => _apply.RestoreAllAsync(null)).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("revert on close", ex);
+        }
+        RunState = _backup.Count == 0 ? AppRunState.Idle : AppRunState.Running;
     }
 
     [RelayCommand]
@@ -221,10 +292,11 @@ public partial class MainViewModel : ObservableObject
 
     // ---------- presets bridge ----------
 
-    private async Task ApplyPresetAsync(Preset preset)
+    private Task ApplyPresetAsync(Preset preset)
     {
         LoadConfig(preset.Config.Clone());
-        await RunAsync();
+        StartFlow();
+        return Task.CompletedTask;
     }
 
     // ---------- config <-> view-models ----------

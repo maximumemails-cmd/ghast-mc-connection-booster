@@ -184,13 +184,13 @@
                     FontWeight="SemiBold" /><Run Text=" user" Foreground="{StaticResource TextWhite}" />
             </TextBlock>
 
-            <Button Content="Run"
+            <Button Content="{Binding FooterButtonText}"
                     Style="{StaticResource RunButton}"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Center"
                     Margin="0,0,24,0"
-                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
-                    Command="{Binding RunCommand}" />
+                    IsEnabled="{Binding FooterEnabled}"
+                    Command="{Binding RunOrStopCommand}" />
         </Grid>
     </Grid>
 </Window>

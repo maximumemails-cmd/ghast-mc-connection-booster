@@ -12,4 +12,8 @@ public class Preset
 
     [JsonIgnore]
     public string? FilePath { get; set; }
+
+    /// <summary>True for the baked-in presets — set on load by name, protected from deletion.</summary>
+    [JsonIgnore]
+    public bool IsBuiltIn { get; set; }
 }

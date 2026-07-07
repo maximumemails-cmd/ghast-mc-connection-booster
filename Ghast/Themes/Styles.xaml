@@ -504,6 +504,29 @@
         </Setter>
     </Style>
 
+    <!-- ======================= ProgressBar (Run/Stop popup) ======================= -->
+
+    <Style x:Key="RedProgressBar" TargetType="ProgressBar">
+        <Setter Property="Foreground" Value="{StaticResource Accent}" />
+        <Setter Property="Background" Value="{StaticResource TrackOff}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ProgressBar">
+                    <Border CornerRadius="5" Background="{TemplateBinding Background}" ClipToBounds="True">
+                        <Grid>
+                            <Border x:Name="PART_Track" />
+                            <Border x:Name="PART_Indicator"
+                                    HorizontalAlignment="Left"
+                                    CornerRadius="5"
+                                    Background="{TemplateBinding Foreground}" />
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- ======================= CheckBox (Select Mode) ======================= -->
 
     <Style x:Key="GhastCheckBox" TargetType="CheckBox">

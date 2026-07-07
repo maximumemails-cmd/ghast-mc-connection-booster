@@ -11,5 +11,7 @@ public partial class PresetItemViewModel : ObservableObject
 
     public string Name => Preset.Name;
 
+    public bool IsBuiltIn => Preset.IsBuiltIn;
+
     [ObservableProperty] private bool _isSelected;
 }

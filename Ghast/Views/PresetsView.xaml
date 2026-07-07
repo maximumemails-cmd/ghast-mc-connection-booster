@@ -30,6 +30,11 @@
                         Style="{StaticResource OutlinedRedButton}"
                         Margin="0,0,12,0"
                         Command="{Binding ToggleSelectModeCommand}" />
+                <Button Content="ⓘ Explain"
+                        Style="{StaticResource OutlinedRedButton}"
+                        Margin="0,0,12,0"
+                        ToolTip="What do the built-in presets actually do?"
+                        Command="{Binding ExplainCommand}" />
                 <Button Content="Import Preset"
                         Style="{StaticResource OutlinedRedButton}"
                         Margin="0,0,12,0"

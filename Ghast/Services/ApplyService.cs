@@ -103,14 +103,18 @@ public class ApplyService
 
     // ---------- run ----------
 
-    public async Task<List<ApplyResult>> RunAsync(GhastConfig config, IProgress<ApplyResult>? progress = null)
+    public async Task<List<ApplyResult>> RunAsync(GhastConfig config, IProgress<ApplyProgress>? progress = null)
     {
         var results = new List<ApplyResult>();
+        // Progress is stage-based: ~11 sequential stages. Percent tracks completed reports,
+        // clamped to 99 so a skipped stage can't stall the bar; a final 100% is emitted at the end.
+        const int estimatedStages = 11;
         void Report(string item, bool ok, string? msg = null)
         {
             var r = new ApplyResult(item, ok, msg);
             results.Add(r);
-            progress?.Report(r);
+            var percent = Math.Min(99, (int)Math.Round(results.Count * 100.0 / estimatedStages));
+            progress?.Report(new ApplyProgress(percent, $"{item}…", r));
             if (!ok)
                 Logger.Log($"FAILED {item}: {msg}");
         }
@@ -322,20 +326,23 @@ public class ApplyService
         catch (Exception ex) { Report("DNS", false, ex.Message); }
 
         _configService.Save(config);
+        progress?.Report(new ApplyProgress(100, "Finishing up…"));
         Logger.Log($"run complete: {results.Count(r => r.Success)}/{results.Count} ok");
         return results;
     }
 
     // ---------- restore defaults ----------
 
-    public async Task<List<ApplyResult>> RestoreAllAsync(IProgress<ApplyResult>? progress = null)
+    public async Task<List<ApplyResult>> RestoreAllAsync(IProgress<ApplyProgress>? progress = null)
     {
         var results = new List<ApplyResult>();
+        var restoreTotal = Math.Max(1, _backup.Count + 1);
         void Report(string item, bool ok, string? msg = null)
         {
             var r = new ApplyResult(item, ok, msg);
             results.Add(r);
-            progress?.Report(r);
+            var percent = Math.Min(100, (int)Math.Round(results.Count * 100.0 / restoreTotal));
+            progress?.Report(new ApplyProgress(percent, "Reverting changes…", r));
         }
 
         if (!OperatingSystem.IsWindows())
@@ -411,6 +418,7 @@ public class ApplyService
         else
             Report("Backup store", false, "kept backup.json because some restores failed — fix and retry");
 
+        progress?.Report(new ApplyProgress(100, "Done"));
         return results;
     }
 

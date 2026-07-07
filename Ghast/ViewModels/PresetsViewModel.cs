@@ -15,19 +15,22 @@ public partial class PresetsViewModel : ObservableObject
     private readonly Func<Preset, Task> _applyPreset;
     private readonly Func<string, string?> _promptName;
     private readonly Func<string, IEnumerable<string>, string, bool> _confirm;
+    private readonly Action _showExplanations;
 
     public PresetsViewModel(
         PresetService presetService,
         Func<GhastConfig> snapshotConfig,
         Func<Preset, Task> applyPreset,
         Func<string, string?> promptName,
-        Func<string, IEnumerable<string>, string, bool> confirm)
+        Func<string, IEnumerable<string>, string, bool> confirm,
+        Action showExplanations)
     {
         _presetService = presetService;
         _snapshotConfig = snapshotConfig;
         _applyPreset = applyPreset;
         _promptName = promptName;
         _confirm = confirm;
+        _showExplanations = showExplanations;
 
         _presetService.EnsureSeeded();
         foreach (var preset in _presetService.LoadAll())
@@ -57,6 +60,9 @@ public partial class PresetsViewModel : ObservableObject
 
     [RelayCommand]
     private void ToggleSelectMode() => SelectMode = !SelectMode;
+
+    [RelayCommand]
+    private void Explain() => _showExplanations();
 
     [RelayCommand]
     private async Task ApplyPresetAsync(PresetItemViewModel? item)
@@ -135,10 +141,26 @@ public partial class PresetsViewModel : ObservableObject
         var selected = Items.Where(i => i.IsSelected).ToList();
         if (selected.Count == 0)
             return;
-        if (!_confirm("Delete selected presets?", selected.Select(s => s.Name), "Delete"))
+
+        var builtIn = selected.Where(i => i.IsBuiltIn).ToList();
+        var deletable = selected.Where(i => !i.IsBuiltIn).ToList();
+
+        if (deletable.Count == 0)
+        {
+            _confirm("Can't delete built-in presets",
+                builtIn.Select(b => b.Name)
+                    .Append("Built-in presets are protected and can't be deleted."),
+                "OK");
+            return;
+        }
+
+        var lines = deletable.Select(s => s.Name).ToList();
+        if (builtIn.Count > 0)
+            lines.Add($"({builtIn.Count} built-in preset(s) will be kept.)");
+        if (!_confirm("Delete selected presets?", lines, "Delete"))
             return;
 
-        foreach (var item in selected)
+        foreach (var item in deletable)
         {
             _presetService.Delete(item.Preset);
             Items.Remove(item);

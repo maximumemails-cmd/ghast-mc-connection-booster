@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "emberfall",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["/private/tmp/claude-501/-Users-maxburgess-Desktop-testis-claude-ghast/d21c3915-a413-43ed-bbbe-ba3018d564ab/scratchpad/serve.py"],
+      "port": 8137
+    }
+  ]
+}

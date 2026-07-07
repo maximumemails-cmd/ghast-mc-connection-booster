@@ -61,7 +61,25 @@ public partial class App : Application
             startup, taskbarPin, ping, dialogs);
         var window = new MainWindow { DataContext = mainViewModel };
         MainWindow = window;
-        window.Closing += (_, _) => mainViewModel.SaveConfig();
+        window.Closing += (_, e) =>
+        {
+            // If Ghast tweaks are still applied, offer to revert before exiting so the
+            // user never leaves changes stuck on by accident.
+            if (mainViewModel.RunState == AppRunState.Running)
+            {
+                switch (mainViewModel.PromptCloseChoice())
+                {
+                    case CloseChoice.Cancel:
+                        e.Cancel = true;
+                        return;
+                    case CloseChoice.Revert:
+                        mainViewModel.RevertBeforeClose();
+                        break;
+                    // CloseChoice.LeaveApplied: close with tweaks left in place.
+                }
+            }
+            mainViewModel.SaveConfig();
+        };
         window.Show();
 
         // One-time welcome (Start with Windows / Pin to taskbar). The flag is saved

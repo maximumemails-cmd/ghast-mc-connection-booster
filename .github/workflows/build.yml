@@ -3,6 +3,7 @@ name: Build Ghast Installer
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]          # pushing a v1.2.0-style tag also builds a release installer
   workflow_dispatch:        # lets you rebuild on demand from the Actions tab
 
 jobs:
