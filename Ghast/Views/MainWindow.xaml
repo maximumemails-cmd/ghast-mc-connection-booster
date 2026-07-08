@@ -53,16 +53,14 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <!-- Ghast logo: geometric white "G" ghost mark drawn as a vector path -->
-            <Viewbox Grid.Column="0" Width="44" Height="44" Margin="24,0,0,0"
-                     VerticalAlignment="Center">
-                <Canvas Width="28" Height="28">
-                    <Path Stroke="White" StrokeThickness="3.2"
-                          StrokeStartLineCap="Flat" StrokeEndLineCap="Flat"
-                          StrokeLineJoin="Miter"
-                          Data="M 23 4 H 10 C 6 4 4.5 5.5 4.5 9.5 V 16.5 C 4.5 20.5 6 22 10 22 H 15.5 M 15.5 22 V 14.5 H 23 M 23 14.5 V 18.5 M 19.5 22 V 26.5" />
-                </Canvas>
-            </Viewbox>
+            <!-- Ghast mascot logo (white ghast reads cleanly on the dark header) -->
+            <Image Grid.Column="0"
+                   Source="pack://application:,,,/Assets/ghast-logo.png"
+                   Height="54" Stretch="Uniform"
+                   HorizontalAlignment="Left" VerticalAlignment="Center"
+                   Margin="20,0,0,0"
+                   RenderOptions.BitmapScalingMode="HighQuality"
+                   SnapsToDevicePixels="True" />
 
             <!-- Tabs -->
             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center"

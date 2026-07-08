@@ -14,7 +14,7 @@
 ; clean, then restore the user data. Never change the AppId.
 
 #define MyAppName "Ghast"
-#define MyAppVersion "3.0.0"
+#define MyAppVersion "3.0.1"
 #define MyAppPublisher "Ghast"
 #define MyAppExeName "Ghast.exe"
 #define PublishDir "..\publish"
