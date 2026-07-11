@@ -59,7 +59,7 @@ public partial class App : Application
         var dialogs = new DialogService();
 
         var mainViewModel = new MainViewModel(apply, configService, backup, presetService,
-            startup, taskbarPin, ping, dialogs);
+            startup, taskbarPin, adapters, ping, dialogs);
         var window = new MainWindow { DataContext = mainViewModel };
         MainWindow = window;
         window.Closing += (_, e) =>

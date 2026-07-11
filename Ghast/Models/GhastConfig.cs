@@ -32,6 +32,13 @@ public class GhastConfig
     [JsonPropertyName("firstRunDone")]
     public bool FirstRunDone { get; set; }
 
+    /// <summary>
+    /// Per-server profile: the Ping-tab server (host or host:port) saved with the config —
+    /// and therefore with every preset. (Schema addition, see README.)
+    /// </summary>
+    [JsonPropertyName("pingTarget")]
+    public string PingTarget { get; set; } = "";
+
     public GhastConfig Clone() =>
         JsonSerializer.Deserialize<GhastConfig>(JsonSerializer.Serialize(this)) ?? new GhastConfig();
 }

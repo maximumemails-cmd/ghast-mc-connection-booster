@@ -54,8 +54,12 @@ public class PingService
     private const int MaxSamples = 12;
     private const int GapMs = 300;
 
+    /// <summary>
+    /// Full test with the standard budget. maxSamples/budget can be reduced for the quick
+    /// baseline measurement taken just before a Run.
+    /// </summary>
     public async Task<PingReport> TestAsync(string input, IProgress<string>? progress = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default, int maxSamples = MaxSamples, TimeSpan? budget = null)
     {
         var (host, explicitPort) = ParseAddress(input);
 
@@ -77,12 +81,13 @@ public class PingService
         var tried = 0;
         string? firstError = null;
 
+        var testBudget = budget ?? TestBudget;
         var clock = Stopwatch.StartNew();
-        while (clock.Elapsed < TestBudget && tried < MaxSamples)
+        while (clock.Elapsed < testBudget && tried < maxSamples)
         {
             ct.ThrowIfCancellationRequested();
             tried++;
-            progress?.Report($"Pinging… sample {tried}/{MaxSamples}");
+            progress?.Report($"Pinging… sample {tried}/{maxSamples}");
             try
             {
                 var wantStatus = report.Motd is null && samples.Count == 0;
@@ -119,6 +124,23 @@ public class PingService
         Logger.Log($"ping test {host}:{port} — avg {report.AvgMs}ms jitter {report.JitterMs}ms " +
                    $"loss {report.LossPercent}% score {report.Score}");
         return report;
+    }
+
+    /// <summary>Resolves an address the same way TestAsync does (SRV → A + 25565) without pinging.</summary>
+    public async Task<(string Host, int Port)> ResolveAsync(string input, CancellationToken ct = default)
+    {
+        var (host, explicitPort) = ParseAddress(input);
+        var port = explicitPort ?? DefaultPort;
+        if (explicitPort is null && await TryResolveSrvAsync(host, ct) is { } srv)
+            (host, port) = srv;
+        return (host, port);
+    }
+
+    /// <summary>One connect + status ping round trip in ms — the live monitor's sample. Throws on failure.</summary>
+    public async Task<double> ProbeAsync(string host, int port, CancellationToken ct = default)
+    {
+        var (ms, _) = await SampleAsync(host, port, readStatusJson: false, ct);
+        return ms;
     }
 
     // ---------- address handling ----------

@@ -182,13 +182,28 @@
                     FontWeight="SemiBold" /><Run Text=" user" Foreground="{StaticResource TextWhite}" />
             </TextBlock>
 
-            <Button Content="{Binding FooterButtonText}"
-                    Style="{StaticResource RunButton}"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Center"
-                    Margin="0,0,24,0"
-                    IsEnabled="{Binding FooterEnabled}"
-                    Command="{Binding RunOrStopCommand}" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Margin="0,0,24,0">
+                <Button Content="Preview"
+                        Style="{StaticResource OutlinedRedButton}"
+                        Margin="0,0,12,0"
+                        VerticalAlignment="Center"
+                        ToolTip="Dry run: shows exactly what Run would change — current value vs the value that would be written — without touching anything."
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
+                        Command="{Binding PreviewCommand}" />
+                <Button Content="What changed"
+                        Style="{StaticResource OutlinedRedButton}"
+                        Margin="0,0,12,0"
+                        VerticalAlignment="Center"
+                        ToolTip="Receipt of every value Ghast has changed, with its pre-Ghast original — read from backup.json."
+                        Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibility}}"
+                        Command="{Binding WhatChangedCommand}" />
+                <Button Content="{Binding FooterButtonText}"
+                        Style="{StaticResource RunButton}"
+                        VerticalAlignment="Center"
+                        IsEnabled="{Binding FooterEnabled}"
+                        Command="{Binding RunOrStopCommand}" />
+            </StackPanel>
         </Grid>
     </Grid>
 </Window>

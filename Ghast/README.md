@@ -139,6 +139,10 @@ lossy by design and only affects the mirror, never the written value.
 - **Preset order** persists in `presets\_order.json` (spec asks for drag
   reordering but doesn't say where to store it).
 - **`firstRunDone`** is an extra config field backing the one-time welcome dialog.
+- **`pingTarget`** is an extra config field (host or host:port) backing per-server
+  profiles — saved with the config and inside every preset.
+- **Presets carry a `version` field** (`1`) so shared `.ghast` files can be
+  migrated in future; files without it import as v1.
 - **`DnsClient` NuGet package** was added for SRV record resolution on the Ping
   tab (the only non-UI dependency besides `CommunityToolkit.Mvvm`).
 - Smart Packets OFF *deletes* `TcpAckFrequency`/`TCPNoDelay` per the spec — but the
@@ -176,14 +180,63 @@ The footer button is a stateful toggle driven by `MainViewModel.RunState`
   flips to **Running** and offers **Stop**/**Close**; on any failed step it rolls
   the whole pass back via `RestoreAllAsync` and offers **Retry**/**Close** so the
   machine is never left half-applied.
+- **Reconnect nudge.** The per-interface TCP values (`TcpAckFrequency`,
+  `TCPNoDelay`, `TcpDelAckTicks`) are only read by Windows when a TCP connection
+  is *established* — hitting Run mid-game does not touch the live Minecraft
+  socket. So whenever a Run changed those values, the success popup and the
+  status strip both say it plainly: **reconnect to your server (leave and
+  rejoin) for the TCP tweaks to take effect on your current session.**
+- **Opt-in "Apply to live connection".** The success popup also offers an
+  explicit button that flushes DNS and briefly disables/re-enables each adapter
+  (~3 s) so already-open connections re-establish with the new settings — behind
+  a confirm dialog that names the consequence (everything disconnects). It is
+  never automatic and the tooltip says exactly what it is: it does **not** lower
+  latency; it only forces the settings onto the live session. (History: v1 had a
+  post-Run "flush now?" prompt whose adapter bounce dropped the Minecraft
+  session — that disconnect was a side effect that *accidentally* made the TCP
+  tweaks apply immediately, not extra optimisation power. This brings the useful
+  half back, with consent.)
 - **Stop** (Running) reuses the popup to run `RestoreAllAsync`, reverting every
   captured value, then returns to **Idle**.
+- **Restore verification.** After every restore pass, Ghast re-reads each
+  registry/netsh value and confirms it equals the captured original (or is gone,
+  if it didn't exist before). `backup.json` is only cleared when restore *and*
+  verification both pass; any mismatch is surfaced as a failed step and the
+  backups are kept for retry.
 - The footer is disabled during `Starting`/`Stopping` so clicks can't stack
   applies/reverts. On launch, `RunState` starts as **Running** if `backup.json`
   already holds values (tweaks are live from a previous session).
 - Closing the window while **Running** prompts *revert / leave applied / cancel*.
   The revert path runs on the thread pool (`Task.Run(...).GetAwaiter().GetResult()`)
   to avoid a sync-over-async UI-thread deadlock.
+
+## Receipts, dry runs and proof
+
+Trust comes from showing the work:
+
+- **Preview (footer button).** A true dry run: computes exactly what Run would
+  change with the current settings — live value vs the value that would be
+  written, including the unstable-connection clamps — without touching anything.
+- **What changed (footer button, visible while Running).** A plain-English
+  receipt built from `backup.json`: every value Ghast changed, its captured
+  pre-Ghast original (what Stop returns to), and the live value re-read now.
+- **Before/after ping proof.** If a server is set on the Ping tab, Run first
+  takes a quick 4-sample baseline. After reconnecting, hit **Test** and the Ping
+  tab shows the delta vs that baseline — and reports **"no measurable change"**
+  when the difference is inside the jitter band, because Ghast removes
+  Windows-added delay, it can't shorten the route.
+- **Live monitor (Ping tab).** Samples the server every 4 s (real Server List
+  Ping probes) and charts latency as a sparkline with avg / jitter / loss over
+  the last window. Failed probes count as loss and leave gaps in the line.
+- **Per-server profiles.** The Ping-tab server is saved in `config.json`
+  (`pingTarget`) and therefore inside every preset — an exported "Hypixel setup"
+  recalls both the tweaks and the server.
+- **Detect from adapter (Settings tab).** Suggests `Type` from the active
+  adapter. Honest limits: wireless vs wired is real; fiber/cable/DSL are classed
+  by link speed and labelled as a guess — a NIC can't truly tell them apart.
+- **Preset export.** Select Mode → *Export Selected* writes shareable `.ghast`
+  files (now carrying a `version` field). Imports are structurally validated and
+  sanitized — fields are never trusted blindly.
 
 ## Presets: built-ins + Explain
 

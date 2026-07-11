@@ -1,0 +1,81 @@
+<Window x:Class="Ghast.Views.ReceiptDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        Width="680"
+        SizeToContent="Height"
+        MaxHeight="640"
+        ShowInTaskbar="False"
+        Background="{StaticResource BgBody}"
+        FontFamily="Segoe UI"
+        Foreground="{StaticResource TextWhite}">
+    <Border BorderBrush="{StaticResource Stroke}" BorderThickness="1">
+        <Grid Margin="28,24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock x:Name="TitleText" Grid.Row="0"
+                       FontSize="19" FontWeight="Bold"
+                       Foreground="{StaticResource TextWhite}" />
+
+            <TextBlock x:Name="HeaderText" Grid.Row="1" Margin="0,8,0,0"
+                       FontSize="13" Foreground="{StaticResource TextMuted}" TextWrapping="Wrap" />
+
+            <!-- column headers -->
+            <Grid Grid.Row="2" Margin="0,16,0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2.2*" />
+                    <ColumnDefinition Width="1.4*" />
+                    <ColumnDefinition Width="1.4*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Setting" FontWeight="SemiBold" FontSize="13"
+                           Foreground="{StaticResource TextMuted}" />
+                <TextBlock Grid.Column="1" x:Name="BeforeHeader" Text="Before" FontWeight="SemiBold" FontSize="13"
+                           Foreground="{StaticResource TextMuted}" Margin="10,0,0,0" />
+                <TextBlock Grid.Column="2" x:Name="NowHeader" Text="Now" FontWeight="SemiBold" FontSize="13"
+                           Foreground="{StaticResource TextMuted}" Margin="10,0,0,0" />
+            </Grid>
+
+            <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" MaxHeight="420">
+                <ItemsControl x:Name="LinesList">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border BorderBrush="#1AFFFFFF" BorderThickness="0,0,0,1" Padding="0,7">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="2.2*" />
+                                        <ColumnDefinition Width="1.4*" />
+                                        <ColumnDefinition Width="1.4*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                        <TextBlock Text="{Binding Setting}" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextWhite}" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Location}" FontSize="11.5"
+                                                   Foreground="{StaticResource TextMuted}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding Before}" FontSize="12.5"
+                                               Foreground="{StaticResource TextMuted}" TextWrapping="Wrap"
+                                               VerticalAlignment="Center" Margin="10,0,0,0" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Now}" FontSize="12.5"
+                                               Foreground="{StaticResource TextWhite}" TextWrapping="Wrap"
+                                               VerticalAlignment="Center" Margin="10,0,0,0" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+                <Button Content="Close" Style="{StaticResource SolidRedButton}" Click="Close_Click" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

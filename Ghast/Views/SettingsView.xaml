@@ -59,6 +59,12 @@
                     <ComboBox Style="{StaticResource GhastDropdown}"
                               ItemsSource="{Binding TypeOptions}"
                               SelectedItem="{Binding ConnectionType}" />
+                    <Button Content="Detect from adapter"
+                            Style="{StaticResource OutlinedRedButton}"
+                            FontSize="12" Padding="12,5"
+                            HorizontalAlignment="Center" Margin="0,10,0,0"
+                            ToolTip="Guesses from your active adapter: wireless vs wired is real; fiber vs cable vs DSL is classed by link speed and is only a starting point — the NIC can't truly tell them apart."
+                            Command="{Binding DataContext.DetectTypeCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
                 </StackPanel>
             </Grid>
 

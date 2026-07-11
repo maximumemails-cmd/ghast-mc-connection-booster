@@ -4,6 +4,13 @@ namespace Ghast.Models;
 
 public class Preset
 {
+    /// <summary>
+    /// Preset schema version for shared .ghast files. Missing (old exports) deserializes
+    /// as 0 and is treated as v1; imports never trust fields blindly (ConfigService.Sanitize).
+    /// </summary>
+    [JsonPropertyName("version")]
+    public int Version { get; set; } = 1;
+
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
 

@@ -8,3 +8,10 @@ public record ApplyResult(string Item, bool Success, string? Message = null);
 /// and the just-completed per-item result (null for pure progress ticks).
 /// </summary>
 public record ApplyProgress(int Percent, string Step, ApplyResult? Result = null);
+
+/// <summary>
+/// What a Run/Stop/Flush operation reports back to the progress popup.
+/// ReconnectAdvised = per-interface TCP values changed, which Windows only reads when a
+/// connection is established — so an in-game session needs a reconnect to pick them up.
+/// </summary>
+public record OperationResult(bool Success, bool ReconnectAdvised = false);

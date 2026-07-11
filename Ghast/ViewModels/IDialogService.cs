@@ -12,14 +12,18 @@ public interface IDialogService
     void ShowAppSettings(MainViewModel viewModel);
 
     /// <summary>
-    /// Shows the modal Run/Stop progress popup, runs <paramref name="operation"/> to completion
-    /// (reporting progress), and returns how the popup ended. Blocks until the popup closes.
+    /// Shows the modal Run/Stop/Flush progress popup, runs <paramref name="operation"/> to
+    /// completion (reporting progress), and returns how the popup ended. Blocks until closed.
     /// </summary>
-    RunProgressOutcome ShowRunProgress(RunProgressMode mode, Func<IProgress<ApplyProgress>, Task<bool>> operation);
+    RunProgressOutcome ShowRunProgress(RunProgressMode mode,
+        Func<IProgress<ApplyProgress>, Task<OperationResult>> operation);
 
     /// <summary>Three-way "Ghast is still active — revert before closing?" prompt.</summary>
     CloseChoice PromptClose();
 
     /// <summary>Modal that explains the built-in presets honestly.</summary>
     void ShowPresetExplanations();
+
+    /// <summary>Scrollable Before/Now table: the "what changed" receipt and the dry-run preview.</summary>
+    void ShowReceipt(string title, string header, IReadOnlyList<ReceiptLine> lines);
 }

@@ -104,10 +104,13 @@ public class AdapterService
 
     /// <summary>
     /// Light-weight stack refresh: flush the DNS cache and bounce each active adapter.
-    /// Briefly drops the connection — the caller must warn the user first.
+    /// Briefly drops the connection — the caller must warn the user first (opt-in only).
+    /// Its honest purpose: force already-open connections to re-establish so the new
+    /// per-interface TCP settings apply to them. It does not lower latency by itself.
     /// </summary>
-    public async Task FlushAsync(NetshService netsh)
+    public async Task FlushAsync(NetshService netsh, IProgress<ApplyProgress>? progress = null)
     {
+        progress?.Report(new ApplyProgress(5, "Flushing DNS cache…"));
         try
         {
             var psi = new System.Diagnostics.ProcessStartInfo("ipconfig", "/flushdns")
@@ -125,11 +128,55 @@ public class AdapterService
             Logger.Error("flushdns", ex);
         }
 
-        foreach (var adapter in GetActiveAdapters())
+        var adapters = GetActiveAdapters();
+        for (var i = 0; i < adapters.Count; i++)
         {
+            var adapter = adapters[i];
+            var basePct = 10 + i * 85 / Math.Max(1, adapters.Count);
+            progress?.Report(new ApplyProgress(basePct, $"Reconnecting '{adapter.Name}'…"));
             await netsh.RunAsync($"interface set interface name=\"{adapter.Name}\" admin=disable");
             await Task.Delay(1500);
             await netsh.RunAsync($"interface set interface name=\"{adapter.Name}\" admin=enable");
+        }
+        progress?.Report(new ApplyProgress(100, "Adapters back up"));
+    }
+
+    /// <summary>
+    /// Best-effort guess of Settings.Type from the active adapter. Honest limits: wireless
+    /// vs wired is real; fiber vs cable vs DSL cannot be truly detected from the NIC, so
+    /// wired links are classed by link speed and clearly labelled as a guess.
+    /// </summary>
+    public (string Type, string Reason)? DetectConnectionType()
+    {
+        try
+        {
+            var candidates = NetworkInterface.GetAllNetworkInterfaces()
+                .Where(n => n.OperationalStatus == OperationalStatus.Up
+                            && n.NetworkInterfaceType != NetworkInterfaceType.Loopback
+                            && n.NetworkInterfaceType != NetworkInterfaceType.Tunnel)
+                .ToList();
+            // Prefer the adapter that actually routes to the internet (has a gateway).
+            var primary = candidates.FirstOrDefault(n =>
+                              n.GetIPProperties().GatewayAddresses.Count > 0)
+                          ?? candidates.FirstOrDefault();
+            if (primary is null)
+                return null;
+
+            if (primary.NetworkInterfaceType == NetworkInterfaceType.Wireless80211)
+                return ("WiFi", $"'{primary.Name}' is a wireless adapter → Wi-Fi profile.");
+
+            var mbps = primary.Speed / 1_000_000;
+            return mbps switch
+            {
+                >= 700 => ("Fiber", $"Wired link at {mbps:N0} Mbps → fiber-class guess. (Fiber vs cable can't be truly detected from the adapter.)"),
+                >= 90 => ("Cable", $"Wired link at {mbps:N0} Mbps → cable-class guess."),
+                _ => ("DSL", $"Wired link at {mbps:N0} Mbps → DSL-class guess.")
+            };
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("detecting connection type", ex);
+            return null;
         }
     }
 }

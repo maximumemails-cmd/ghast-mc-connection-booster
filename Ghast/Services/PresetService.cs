@@ -132,6 +132,10 @@ public class PresetService
 
         preset.Config = ConfigService.Sanitize(preset.Config);
 
+        // Old shared files have no version field (deserializes 0) → normalize to v1.
+        if (preset.Version < 1)
+            preset.Version = 1;
+
         // Avoid clobbering an existing preset with the same name.
         var existingNames = LoadAll().Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var baseName = preset.Name;
@@ -140,6 +144,15 @@ public class PresetService
 
         Save(preset);
         return preset;
+    }
+
+    /// <summary>Writes a shareable .ghast copy of the preset into the given folder; returns the path.</summary>
+    public string ExportTo(Preset preset, string folder)
+    {
+        var path = Path.Combine(folder, SanitizeFileName(preset.Name) + ".ghast");
+        File.WriteAllText(path, JsonSerializer.Serialize(preset, JsonOpts));
+        Logger.Log($"preset exported: {preset.Name} -> {path}");
+        return path;
     }
 
     public void SaveOrder(IEnumerable<string> names)

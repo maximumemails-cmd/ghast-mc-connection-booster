@@ -27,11 +27,17 @@ public class DialogService : IDialogService
     }
 
     public RunProgressOutcome ShowRunProgress(RunProgressMode mode,
-        Func<IProgress<ApplyProgress>, Task<bool>> operation)
+        Func<IProgress<ApplyProgress>, Task<OperationResult>> operation)
     {
         var dialog = new RunProgressWindow(mode, operation) { Owner = Owner };
         dialog.ShowDialog();
         return dialog.Outcome;
+    }
+
+    public void ShowReceipt(string title, string header, IReadOnlyList<ReceiptLine> lines)
+    {
+        var dialog = new ReceiptDialog(title, header, lines) { Owner = Owner };
+        dialog.ShowDialog();
     }
 
     public CloseChoice PromptClose()

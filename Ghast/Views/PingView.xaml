@@ -11,16 +11,18 @@
                     Info="Measures connection quality from this PC to the server you enter: real Minecraft status pings over ~8 seconds, reporting latency, jitter and failed pings. Honest note: this grades the route between you and the server's edge — it can't see the server's internal proxy or routing." />
             </StackPanel>
 
-            <!-- address + test button -->
+            <!-- address + test + monitor buttons -->
             <Grid Margin="0,26,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBox Grid.Column="0"
                          Style="{StaticResource GhastTextBox}"
                          Tag="mc.hypixel.net  or  192.168.1.10:25565"
-                         Text="{Binding Address, UpdateSourceTrigger=PropertyChanged}" />
+                         Text="{Binding Address, UpdateSourceTrigger=PropertyChanged}"
+                         ToolTip="Saved with your settings and presets, so a preset can recall its server." />
                 <Button Grid.Column="1"
                         Style="{StaticResource SolidRedButton}"
                         Margin="12,0,0,0"
@@ -38,7 +40,35 @@
                     </Button.Resources>
                     <TextBlock />
                 </Button>
+                <Button Grid.Column="2"
+                        Content="{Binding MonitorButtonText}"
+                        Style="{StaticResource OutlinedRedButton}"
+                        Margin="10,0,0,0"
+                        MinWidth="96"
+                        ToolTip="Samples the server every few seconds and charts latency, jitter and failed pings live."
+                        Command="{Binding ToggleMonitorCommand}" />
             </Grid>
+
+            <!-- live monitor readout + sparkline -->
+            <Border Background="{StaticResource BgPanel}"
+                    BorderBrush="{StaticResource Stroke}" BorderThickness="1"
+                    CornerRadius="8" Padding="16,12" Margin="0,16,0,0"
+                    Visibility="{Binding MonitorSummary, Converter={StaticResource NullToCollapsed}}">
+                <StackPanel>
+                    <TextBlock Text="{Binding MonitorSummary}"
+                               FontSize="13.5" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextWhite}"
+                               HorizontalAlignment="Center" TextWrapping="Wrap" />
+                    <Viewbox Stretch="Fill" Height="44" Margin="0,10,0,0">
+                        <Canvas Width="300" Height="40" ClipToBounds="True">
+                            <Polyline Points="{Binding SparklinePoints}"
+                                      Stroke="{StaticResource Accent}"
+                                      StrokeThickness="1.8"
+                                      StrokeLineJoin="Round" />
+                        </Canvas>
+                    </Viewbox>
+                </StackPanel>
+            </Border>
 
             <!-- progress / error -->
             <TextBlock Text="{Binding ProgressText}"
@@ -55,6 +85,13 @@
                        HorizontalAlignment="Center"
                        Margin="0,14,0,0"
                        Visibility="{Binding ErrorText, Converter={StaticResource NullToCollapsed}}" />
+
+            <!-- pre-Run baseline (captured automatically when Run starts) -->
+            <TextBlock Text="{Binding BaselineText}"
+                       Style="{StaticResource MutedLabel}" FontSize="13"
+                       HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
+                       Margin="0,14,0,0"
+                       Visibility="{Binding BaselineText, Converter={StaticResource NullToCollapsed}}" />
 
             <!-- results -->
             <Border Background="{StaticResource BgPanel}"
@@ -84,6 +121,14 @@
                                Foreground="{StaticResource TextWhite}"
                                TextWrapping="Wrap" TextAlignment="Center"
                                Margin="0,14,0,0" />
+
+                    <!-- honest before/after verdict vs the pre-Run baseline -->
+                    <TextBlock Text="{Binding ComparisonText}"
+                               FontSize="13.5" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextWhite}"
+                               TextWrapping="Wrap" TextAlignment="Center"
+                               Margin="0,10,0,0"
+                               Visibility="{Binding ComparisonText, Converter={StaticResource NullToCollapsed}}" />
 
                     <Border Height="1" Background="{StaticResource Stroke}" Margin="0,18" />
 

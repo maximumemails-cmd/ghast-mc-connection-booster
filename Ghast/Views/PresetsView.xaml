@@ -26,6 +26,12 @@
                         Margin="0,0,12,0"
                         Visibility="{Binding SelectMode, Converter={StaticResource BoolToVisibility}}"
                         Command="{Binding BulkDeleteCommand}" />
+                <Button Content="Export Selected"
+                        Style="{StaticResource OutlinedRedButton}"
+                        Margin="0,0,12,0"
+                        ToolTip="Saves the selected presets as shareable .ghast files (with a version field) into a folder you pick."
+                        Visibility="{Binding SelectMode, Converter={StaticResource BoolToVisibility}}"
+                        Command="{Binding ExportSelectedCommand}" />
                 <Button Content="Select Mode"
                         Style="{StaticResource OutlinedRedButton}"
                         Margin="0,0,12,0"

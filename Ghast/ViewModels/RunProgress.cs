@@ -4,7 +4,7 @@ namespace Ghast.ViewModels;
 public enum AppRunState { Idle, Starting, Running, Stopping }
 
 /// <summary>Which operation the Run/Stop progress popup is performing.</summary>
-public enum RunProgressMode { Start, Stop }
+public enum RunProgressMode { Start, Stop, Flush }
 
 /// <summary>How the Run/Stop progress popup ended.</summary>
 public enum RunProgressOutcome
@@ -17,6 +17,12 @@ public enum RunProgressOutcome
 
     /// <summary>User clicked Stop inside the Start-success popup — caller should run the stop flow.</summary>
     StopRequested,
+
+    /// <summary>
+    /// User clicked "Apply to live connection" inside the Start-success popup — caller should
+    /// confirm and run the opt-in adapter bounce (never automatic).
+    /// </summary>
+    FlushRequested,
 
     /// <summary>Popup closed without a definite result.</summary>
     Closed

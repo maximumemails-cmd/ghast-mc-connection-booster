@@ -14,6 +14,7 @@ public partial class MainViewModel : ObservableObject
     private readonly BackupService _backup;
     private readonly StartupService _startup;
     private readonly TaskbarPinService _taskbarPin;
+    private readonly AdapterService _adapters;
     private readonly IDialogService _dialogs;
 
     private bool _loading;
@@ -22,13 +23,14 @@ public partial class MainViewModel : ObservableObject
 
     public MainViewModel(ApplyService apply, ConfigService configService, BackupService backup,
         PresetService presetService, StartupService startup, TaskbarPinService taskbarPin,
-        PingService ping, IDialogService dialogs)
+        AdapterService adapters, PingService ping, IDialogService dialogs)
     {
         _apply = apply;
         _configService = configService;
         _backup = backup;
         _startup = startup;
         _taskbarPin = taskbarPin;
+        _adapters = adapters;
         _dialogs = dialogs;
 
         Settings = new SettingsViewModel();
@@ -157,17 +159,61 @@ public partial class MainViewModel : ObservableObject
             outcome = RunProgressOutcome.Failed;
         }
 
-        if (outcome is RunProgressOutcome.Completed or RunProgressOutcome.StopRequested)
+        if (outcome is RunProgressOutcome.Completed or RunProgressOutcome.StopRequested
+            or RunProgressOutcome.FlushRequested)
         {
             RunState = AppRunState.Running;
             SaveConfig();
+
+            // Close the awareness gap: per-interface TCP values only apply to NEW connections.
+            if (_apply.LastRunChangedTcp)
+            {
+                var nudge = "Running — reconnect to your server (leave and rejoin) so the TCP tweaks apply to your current session.";
+                if (!string.IsNullOrWhiteSpace(Ping.Address))
+                    nudge += " Then hit Test on the Ping tab to compare against the baseline.";
+                ShowTransientStatus(nudge);
+            }
+
             if (outcome == RunProgressOutcome.StopRequested)
                 StopFlow();
+            else if (outcome == RunProgressOutcome.FlushRequested)
+                FlushFlow();
         }
         else
         {
             // Failed → StartOperationAsync already rolled back any partial changes.
             RunState = AppRunState.Idle;
+        }
+    }
+
+    /// <summary>
+    /// Opt-in adapter bounce (never automatic): forces already-open connections to
+    /// re-establish so the new per-interface TCP settings reach them. Honest framing:
+    /// it does not lower latency by itself.
+    /// </summary>
+    private void FlushFlow()
+    {
+        var confirmed = _dialogs.Confirm("Apply to your live connection?", new[]
+        {
+            "Ghast will flush the DNS cache and briefly disable/re-enable each network adapter (~3 seconds per adapter).",
+            "EVERYTHING using the network — including your Minecraft session, voice chat and downloads — will disconnect and reconnect.",
+            "Honest note: this does not lower latency by itself. Its only purpose is to make already-open connections pick up the new TCP settings — reconnecting to the server by hand achieves the same thing."
+        }, "Flush");
+        if (!confirmed)
+            return;
+
+        try
+        {
+            _dialogs.ShowRunProgress(RunProgressMode.Flush, async progress =>
+            {
+                await _apply.FlushAsync(progress);
+                return new OperationResult(true);
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("flush flow", ex);
+            ShowTransientStatus("Flush failed — check your adapters are back up. See log.txt.");
         }
     }
 
@@ -193,25 +239,32 @@ public partial class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Apply pass for the Start popup. On any failed step it rolls everything back so the
-    /// machine is never left half-applied. Returns true only if every step succeeded.
+    /// Apply pass for the Start popup. Measures a baseline ping first (when a server is set,
+    /// so the Ping tab can show an honest before/after), then applies. On any failed step it
+    /// rolls everything back so the machine is never left half-applied.
     /// </summary>
-    private async Task<bool> StartOperationAsync(GhastConfig config, IProgress<ApplyProgress> progress)
+    private async Task<OperationResult> StartOperationAsync(GhastConfig config, IProgress<ApplyProgress> progress)
     {
+        if (!string.IsNullOrWhiteSpace(Ping.Address))
+        {
+            progress.Report(new ApplyProgress(2, "Measuring baseline ping to your server…"));
+            await Ping.CaptureBaselineAsync(); // failure is fine — Run must not depend on the server being up
+        }
+
         var results = await _apply.RunAsync(config, progress);
         if (results.All(r => r.Success))
-            return true;
+            return new OperationResult(true, _apply.LastRunChangedTcp);
 
         progress.Report(new ApplyProgress(100, "Rolling back partial changes…"));
         await _apply.RestoreAllAsync(null);
-        return false;
+        return new OperationResult(false);
     }
 
-    /// <summary>Restore pass for the Stop popup. Returns true if every value went back.</summary>
-    private async Task<bool> StopOperationAsync(IProgress<ApplyProgress> progress)
+    /// <summary>Restore pass for the Stop popup. Success = every value went back AND verified.</summary>
+    private async Task<OperationResult> StopOperationAsync(IProgress<ApplyProgress> progress)
     {
         var results = await _apply.RestoreAllAsync(progress);
-        return results.All(r => r.Success);
+        return new OperationResult(results.All(r => r.Success));
     }
 
     // ---------- restore defaults (gear menu — status strip, no popup) ----------
@@ -271,6 +324,81 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void OpenAppSettings() => _dialogs.ShowAppSettings(this);
 
+    // ---------- dry-run preview + "what changed" receipt ----------
+
+    /// <summary>Dry run: shows exactly what Run would change, without writing anything.</summary>
+    [RelayCommand]
+    private async Task PreviewAsync()
+    {
+        if (IsBusy)
+            return;
+        IsBusy = true;
+        try
+        {
+            var config = BuildConfig();
+            var lines = await Task.Run(() => _apply.BuildPreviewAsync(config));
+            _dialogs.ShowReceipt("Dry run — what Run would change",
+                "Nothing has been written. Before = the live value right now; Now = what Run would set. " +
+                "\"(removed)\" means the value would be deleted, returning Windows to its default.",
+                lines);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("preview", ex);
+            ShowTransientStatus("Couldn't build the preview — see log.txt.");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>Receipt of everything Ghast has changed, straight from backup.json.</summary>
+    [RelayCommand]
+    private async Task WhatChangedAsync()
+    {
+        if (IsBusy)
+            return;
+        if (_backup.Count == 0)
+        {
+            ShowTransientStatus("Ghast hasn't changed anything on this machine yet.");
+            return;
+        }
+        IsBusy = true;
+        try
+        {
+            var lines = await Task.Run(() => _apply.BuildReceiptAsync());
+            _dialogs.ShowReceipt("What Ghast changed",
+                "Read from backup.json — Before is the captured pre-Ghast original (the value Stop/Restore returns to); " +
+                "Now is the live value re-read just now.",
+                lines);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("what changed", ex);
+            ShowTransientStatus("Couldn't build the receipt — see log.txt.");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>Best-effort Settings.Type suggestion from the active adapter (honest guess).</summary>
+    [RelayCommand]
+    private void DetectType()
+    {
+        if (_adapters.DetectConnectionType() is { } detected)
+        {
+            Settings.ConnectionType = detected.Type; // triggers the normal type-seeding logic
+            ShowTransientStatus($"Connection type set to {detected.Type}: {detected.Reason}");
+        }
+        else
+        {
+            ShowTransientStatus("Couldn't detect the connection type — no active adapter found.");
+        }
+    }
+
     [RelayCommand]
     private void DismissStatus() => StatusVisible = false;
 
@@ -311,6 +439,7 @@ public partial class MainViewModel : ObservableObject
         Dns = DnsChoice,
         CompetitiveSnapshot = _competitiveSnapshot,
         FirstRunDone = FirstRunDone,
+        PingTarget = Ping.Address?.Trim() ?? "",
         Settings = new SettingsSection
         {
             SmartPackets = Settings.SmartPackets,
@@ -343,6 +472,8 @@ public partial class MainViewModel : ObservableObject
             DnsChoice = config.Dns;
             _competitiveSnapshot = config.CompetitiveSnapshot;
             FirstRunDone = config.FirstRunDone;
+            if (!string.IsNullOrWhiteSpace(config.PingTarget))
+                Ping.Address = config.PingTarget; // per-server profile: presets recall their server
 
             Settings.SmartPackets = config.Settings.SmartPackets;
             Settings.Responsiveness = config.Settings.Responsiveness;

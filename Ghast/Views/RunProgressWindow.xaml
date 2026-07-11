@@ -4,7 +4,8 @@
         WindowStyle="None"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
-        Width="380" Height="212"
+        Width="400" SizeToContent="Height"
+        MinHeight="212"
         ShowInTaskbar="False"
         Background="{StaticResource BgBody}"
         FontFamily="Segoe UI"
@@ -33,16 +34,31 @@
             <TextBlock x:Name="StatusText" Grid.Row="2" Margin="0,14,0,0"
                        FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextWhite}" />
 
-            <TextBlock x:Name="StepText" Grid.Row="3" Margin="0,5,0,0"
+            <TextBlock x:Name="StepText" Grid.Row="3" Margin="0,5,0,0" MinHeight="20"
                        FontSize="13" Foreground="{StaticResource TextMuted}" TextWrapping="Wrap" />
 
-            <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-                <Button x:Name="RetryButton" Content="Retry" Style="{StaticResource OutlinedRedButton}"
-                        Margin="0,0,10,0" Visibility="Collapsed" Click="Retry_Click" />
-                <Button x:Name="StopButton" Content="Stop" Style="{StaticResource SolidRedButton}"
-                        Margin="0,0,10,0" Visibility="Collapsed" Click="Stop_Click" />
-                <Button x:Name="CloseButton" Content="Close" Style="{StaticResource OutlinedRedButton}"
-                        Visibility="Collapsed" Click="Close_Click" />
+            <StackPanel Grid.Row="4">
+                <!-- Reconnect nudge: per-interface TCP values only apply to NEW connections -->
+                <Border x:Name="NudgePanel" Visibility="Collapsed"
+                        Background="{StaticResource BgPanel}"
+                        BorderBrush="{StaticResource Stroke}" BorderThickness="1"
+                        CornerRadius="6" Padding="12,9" Margin="0,12,0,0">
+                    <TextBlock FontSize="12.5" Foreground="{StaticResource TextWhite}" TextWrapping="Wrap"
+                               Text="Reconnect to your server (leave and rejoin) for the TCP tweaks to take effect on your current session — Windows only reads them when a connection starts." />
+                </Border>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                    <Button x:Name="FlushButton" Content="Apply to live connection…"
+                            Style="{StaticResource OutlinedRedButton}"
+                            Margin="0,0,10,0" Visibility="Collapsed" Click="Flush_Click"
+                            ToolTip="Briefly disables and re-enables each network adapter (~3 s) so already-open connections re-establish with the new TCP settings. It does NOT lower latency by itself — and it WILL drop your server session for a few seconds. Optional; reconnecting in-game does the same thing." />
+                    <Button x:Name="RetryButton" Content="Retry" Style="{StaticResource OutlinedRedButton}"
+                            Margin="0,0,10,0" Visibility="Collapsed" Click="Retry_Click" />
+                    <Button x:Name="StopButton" Content="Stop" Style="{StaticResource SolidRedButton}"
+                            Margin="0,0,10,0" Visibility="Collapsed" Click="Stop_Click" />
+                    <Button x:Name="CloseButton" Content="Close" Style="{StaticResource OutlinedRedButton}"
+                            Visibility="Collapsed" Click="Close_Click" />
+                </StackPanel>
             </StackPanel>
         </Grid>
     </Border>

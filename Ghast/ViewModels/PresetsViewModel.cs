@@ -119,6 +119,40 @@ public partial class PresetsViewModel : ObservableObject
         }
     }
 
+    /// <summary>Exports the selected presets as shareable .ghast files into a chosen folder.</summary>
+    [RelayCommand]
+    private void ExportSelected()
+    {
+        var selected = Items.Where(i => i.IsSelected).ToList();
+        if (selected.Count == 0)
+            return;
+
+        var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "Export presets to folder" };
+        if (dialog.ShowDialog() != true)
+            return;
+
+        var exported = 0;
+        var failures = new List<string>();
+        foreach (var item in selected)
+        {
+            try
+            {
+                _presetService.ExportTo(item.Preset, dialog.FolderName);
+                exported++;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"exporting preset {item.Name}", ex);
+                failures.Add($"{item.Name}: {ex.Message}");
+            }
+        }
+
+        var lines = new List<string> { $"Exported {exported} preset(s) to {dialog.FolderName}." };
+        lines.AddRange(failures);
+        _confirm(failures.Count == 0 ? "Export complete" : "Export finished with errors", lines, "OK");
+        SelectMode = false;
+    }
+
     [RelayCommand]
     private async Task BulkApplyAsync()
     {

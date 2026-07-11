@@ -75,6 +75,11 @@ public class ConfigService
         if (string.IsNullOrWhiteSpace(c.Tier))
             c.Tier = "Lightning";
 
+        // Per-server ping target: tolerate old configs (null) and absurd input lengths.
+        c.PingTarget = (c.PingTarget ?? "").Trim();
+        if (c.PingTarget.Length > 260)
+            c.PingTarget = c.PingTarget[..260];
+
         return c;
     }
 
